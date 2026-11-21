@@ -106,7 +106,7 @@ window.Grafico = (function () {
     d0 += 'H' + X(oggi);
     svg += '<path class="g-linea" d="' + d0 + '"/>' +
       '<circle class="g-punto" cx="' + X(oggi) + '" cy="' + Y(ultimo) + '" r="4.5"/>' +
-      '<text class="g-valore" x="' + (X(oggi) - 8) + '" y="' + (Y(ultimo) - 10) + '" text-anchor="end">' + UI.euro(ultimo) + ' raccolti</text>';
+      '<text class="g-valore" x="' + (X(oggi) + 8) + '" y="' + (Math.min(Y(ultimo), H - M.b - 8) - 10) + '">' + UI.euro(ultimo) + ' raccolti</text>';
     // etichetta diretta sull'ultima barra
     var ub = barre[barre.length - 1];
     svg += '<text class="g-valore" x="' + Math.min(X(ub.t), W - M.d - 4) + '" y="' + (Y(ub.cumulato) - 8) + '" text-anchor="end">' + UI.euro(ub.cumulato) + '</text>';
