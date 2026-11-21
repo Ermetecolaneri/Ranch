@@ -297,3 +297,47 @@ body:has(.demo-banner:not([hidden])) .view { padding-bottom: 56px; }
 .vuoto { text-align: center; padding: 32px 0; }
 
 .fuochi { position: fixed; inset: 0; width: 100vw; height: 100vh; pointer-events: none; z-index: 70; }
+
+/* ---------------- Admin ---------------- */
+.tabs a[data-sec=admin] { color: var(--err); }
+.tabs a[data-sec=admin].attiva { background: var(--t-red); color: var(--i-red); }
+.sottoschede { display: flex; gap: 6px; margin: 0 0 16px; border-bottom: 1px solid var(--line); }
+.sottoschede a { padding: 8px 14px; text-decoration: none; color: var(--muted); border-bottom: 2px solid transparent; margin-bottom: -1px; }
+.sottoschede a.attiva { color: var(--ink); border-bottom-color: var(--accent); font-weight: 600; }
+.riquadro { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px 16px; margin-bottom: 20px; }
+.riquadro h2 { margin-top: 0; }
+.chip-causali { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 8px 0 4px; }
+.chip { border: 1px solid var(--line); background: var(--bg); color: var(--ink); border-radius: 99px; padding: 4px 10px; font: inherit; font-size: 13px; cursor: pointer; }
+.sel-soci { margin-top: 12px; border-top: 1px solid var(--line); padding-top: 8px; }
+.sel-azioni { font-size: 13px; margin-bottom: 4px; }
+.link { background: none; border: none; padding: 0; color: var(--accent); font: inherit; cursor: pointer; text-decoration: underline; }
+.sel-socio { display: flex; align-items: center; gap: 10px; padding: 6px 0; cursor: pointer; }
+.sel-socio input { width: 18px; height: 18px; accent-color: var(--accent); }
+.sel-socio > span:not(.avatar) { flex: 1; }
+.sel-socio em { font-style: normal; font-size: 13px; }
+.anteprima { font-size: 16px; margin: 12px 0 0; }
+.righe-admin { list-style: none; margin: 0; padding: 0; }
+.righe-admin li { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-top: 1px solid var(--line); }
+.righe-admin .nome { flex: 1; min-width: 0; }
+.soci-admin .nome { display: flex; flex-direction: column; gap: 2px; }
+.soci-admin .nome .badge { align-self: flex-start; }
+.righe-admin li.spento { opacity: .6; }
+.btn.piccolo { min-height: 34px; padding: 0 12px; font-size: 14px; }
+.spunta { display: flex; gap: 8px; align-items: flex-start; margin-top: 12px; font-size: 14px; }
+.link-box { margin-top: 14px; background: var(--bg); border-radius: 10px; padding: 10px 12px; }
+.link-box code { display: block; word-break: break-all; font-size: 13px; margin: 4px 0 8px; user-select: all; }
+.riga-btn { display: flex; gap: 8px; flex-wrap: wrap; }
+.modal h2 { display: flex; align-items: center; gap: 10px; }
+.filtri { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-bottom: 12px; }
+.filtri label { display: flex; flex-direction: column; gap: 2px; }
+.filtri select, .filtri input { font: inherit; font-size: 14px; padding: 6px 8px; border-radius: 8px; border: 1px solid var(--line); background: var(--card); color: var(--ink); min-width: 0; }
+.storico { list-style: none; margin: 0; padding: 0; }
+.storico li { display: flex; gap: 10px; padding: 10px 0; border-top: 1px solid var(--line); }
+.storico .cx { flex: 1; min-width: 0; }
+.storico .cx p { margin: 0; }
+.storico .dx { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; white-space: nowrap; }
+.storico b.pos { color: var(--pos); }
+.tipo-accredito { background: var(--t-green); color: var(--i-green); }
+.tipo-addebito { background: var(--t-red); color: var(--i-red); }
+.tipo-acquisto { background: var(--t-blue); color: var(--i-blue); }
+.tipo-storno, .tipo-rimborso { background: var(--t-yellow); color: var(--i-yellow); }

@@ -27,6 +27,7 @@
   }
 
   function disegnaMe() {
+    document.getElementById('tab-admin').hidden = !(ctx.me && ctx.me.admin);
     if (!ctx.me) { meBox.hidden = true; return; }
     meBox.hidden = false;
     meBox.innerHTML = '<a href="#/soci/' + UI.esc(ctx.me.id) + '">' + UI.avatar(ctx.me, 32) +
@@ -49,6 +50,8 @@
     } else if (sez === 'progetti') {
       if (parti[1]) Progetti.scheda(view, decodeURIComponent(parti[1]), ctx);
       else Progetti.lista(view, ctx);
+    } else if (sez === 'admin') {
+      Admin.mostra(view, parti[1], ctx);
     } else if (IN_ARRIVO[sez]) {
       view.innerHTML = '<p class="muted pad">La sezione ' + IN_ARRIVO[sez] + ' è in costruzione.</p>';
     } else {

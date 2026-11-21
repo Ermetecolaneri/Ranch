@@ -215,6 +215,107 @@
       if (p.creatoDa !== s.id && !s.admin) return rifiuto('Solo chi ha proposto il progetto può cambiarne la foto.');
       p.foto = dataUrl;
       return attesa({ foto: dataUrl });
+    },
+
+    // ----- admin (demo) -----
+    adminGet: function (k) {
+      var a = perCodice(k);
+      if (!a || !a.admin) return rifiuto('Funzione riservata all\'admin.');
+      var s = saldi(D.movimenti);
+      var soci = D.soci.slice().sort(function (x, y) { return (y.attivo - x.attivo) || x.nome.localeCompare(y.nome, 'it'); })
+        .map(function (x) { var p = pubblico(x, s); p.attivo = x.attivo; p.admin = !!x.admin; p.codice = x.codice; return p; });
+      var causali = [];
+      D.movimenti.slice().reverse().forEach(function (m) {
+        if (m.tipo === 'accredito' && m.causale && causali.indexOf(m.causale) < 0 && causali.length < 6) causali.push(m.causale);
+      });
+      return attesa({ soci: soci, causaliRecenti: causali,
+        fondocassa: soci.filter(function (x) { return x.attivo; }).reduce(function (t, x) { return t + x.credito; }, 0) });
+    },
+    adminAccredita: function (k, ids, importo, causale, forza) {
+      var a = perCodice(k);
+      if (!a || !a.admin) return rifiuto('Funzione riservata all\'admin.');
+      importo = Number(importo); causale = String(causale || '').trim();
+      if (!ids.length) return rifiuto('Scegli almeno un socio.');
+      if (!importo || Math.round(importo * 100) !== importo * 100) return rifiuto('Importo non valido.');
+      if (!causale) return rifiuto('Scrivi una causale.');
+      if (!forza) {
+        var doppi = D.movimenti.filter(function (m) { return ids.indexOf(m.socio) >= 0 && (m.tipo === 'accredito' || m.tipo === 'addebito') &&
+          m.causale.toLowerCase() === causale.toLowerCase(); })
+          .map(function (m) { return miniSocio(m.socio).nome; })
+          .filter(function (n, i, arr) { return arr.indexOf(n) === i; });
+        if (doppi.length) return attesa({ ok: false, doppi: doppi });
+      }
+      var s = saldi(D.movimenti);
+      if (importo < 0) {
+        for (var i = 0; i < ids.length; i++) {
+          var c = s[ids[i]] ? s[ids[i]].credito : 0;
+          if (c + importo < 0) return rifiuto('Credito di ' + miniSocio(ids[i]).nome + ' insufficiente: ha ' + UI.euro(c) + '.');
+        }
+      }
+      ids.forEach(function (id, j) {
+        D.movimenti.push({ id: 'm' + Date.now() + j, data: new Date().toISOString(), socio: id, tipo: importo > 0 ? 'accredito' : 'addebito',
+                           importo: importo, progetto: '', quote: 0, causale: causale, fattoDa: 'admin' });
+      });
+      return attesa({ ok: true, soci: ids.length, totale: ids.length * importo });
+    },
+    adminStorna: function (k, idm, quote, causale) {
+      var a = perCodice(k);
+      if (!a || !a.admin) return rifiuto('Funzione riservata all\'admin.');
+      var m = D.movimenti.filter(function (x) { return x.id === idm; })[0];
+      if (!m || m.tipo !== 'acquisto') return rifiuto('Si possono stornare solo gli acquisti.');
+      var resto = m.quote + D.movimenti.filter(function (x) { return x.rif === idm; }).reduce(function (t, x) { return t + x.quote; }, 0);
+      quote = Number(quote);
+      if (resto <= 0) return rifiuto('Questo acquisto è già stato stornato del tutto.');
+      if (!(quote >= 1 && quote <= resto)) return rifiuto('Puoi stornare da 1 a ' + resto + ' quote di questo acquisto.');
+      var unit = -m.importo / m.quote;
+      D.movimenti.push({ id: 'm' + Date.now(), data: new Date().toISOString(), socio: m.socio, tipo: 'storno', importo: quote * unit,
+                         progetto: m.progetto, quote: -quote, causale: causale || ('Storno ' + quote + (quote === 1 ? ' quota' : ' quote')), rif: idm, fattoDa: 'admin' });
+      return attesa({ ok: true, importo: quote * unit });
+    },
+    adminStorico: function (k, f) {
+      var a = perCodice(k);
+      if (!a || !a.admin) return rifiuto('Funzione riservata all\'admin.');
+      f = f || {};
+      var lista = D.movimenti.filter(function (m) {
+        return (!f.socio || m.socio === f.socio) && (!f.tipo || m.tipo === f.tipo) && (!f.mese || String(m.data).slice(0, 7) === f.mese);
+      }).sort(function (x, y) { return x.data < y.data ? 1 : -1; }).map(function (m) {
+        var p = D.progetti.filter(function (x) { return x.id === m.progetto; })[0];
+        var resto = m.tipo === 'acquisto' ? m.quote + D.movimenti.filter(function (x) { return x.rif === m.id; }).reduce(function (t, x) { return t + x.quote; }, 0) : 0;
+        return { id: m.id, data: m.data, tipo: m.tipo, importo: m.importo, quote: m.quote, causale: m.causale, messaggio: m.messaggio || '',
+                 fattoDa: m.fattoDa || (m.tipo === 'acquisto' ? 'socio' : 'admin'), rif: m.rif || null, socio: miniSocio(m.socio),
+                 progetto: p ? { id: p.id, titolo: p.titolo, stato: p.stato } : null, stornabili: resto };
+      });
+      return attesa(lista);
+    },
+    adminSocioSalva: function (k, id, d) {
+      var a = perCodice(k);
+      if (!a || !a.admin) return rifiuto('Funzione riservata all\'admin.');
+      var nome = String(d.nome || '').trim();
+      if (!nome) return rifiuto('Scrivi il nome.');
+      if (!id) {
+        var nuovo = { id: 's' + Date.now(), nome: nome, numeroGara: null, bio: '', dataIngresso: d.dataIngresso || '', foto: '', attivo: true,
+                      codice: 'demo-' + Math.random().toString(16).slice(2, 10) };
+        D.soci.push(nuovo);
+        return attesa({ id: nuovo.id, nome: nome, codice: nuovo.codice });
+      }
+      var s = D.soci.filter(function (x) { return x.id === id; })[0];
+      if (!s) return rifiuto('Socio non trovato.');
+      if (s.id === a.id && d.attivo === false) return rifiuto('Non puoi disattivare te stesso.');
+      Object.assign(s, { nome: nome, dataIngresso: d.dataIngresso || '', attivo: d.attivo === undefined ? s.attivo : !!d.attivo });
+      return attesa({ id: s.id, nome: s.nome, codice: s.codice });
+    },
+    adminRigenera: function (k, id) {
+      var a = perCodice(k);
+      if (!a || !a.admin) return rifiuto('Funzione riservata all\'admin.');
+      if (id === a.id) return rifiuto('Il tuo link non si rigenera da qui: perderesti l\'accesso admin da questo dispositivo.');
+      var s = D.soci.filter(function (x) { return x.id === id; })[0];
+      s.codice = 'demo-' + Math.random().toString(16).slice(2, 10);
+      return attesa({ codice: s.codice });
+    },
+    adminRimuoviFoto: function (k, id) {
+      var s = D.soci.filter(function (x) { return x.id === id; })[0];
+      if (s) s.foto = '';
+      return attesa({ ok: true });
     }
   };
 
@@ -313,7 +414,29 @@
     caricaFotoProgetto: function (k, id, dataUrl) {
       return funzione('carica-foto', { k: k, foto: dataUrl, progetto: id })
         .then(function (r) { r.foto = urlFoto(r.foto, 'progetti'); return r; });
-    }
+    },
+
+    // ----- admin -----
+    adminGet: function (k) {
+      return rpc('admin_get', { p_k: k }).then(function (d) { d.soci.forEach(conFoto); return d; });
+    },
+    adminAccredita: function (k, ids, importo, causale, forza) {
+      return rpc('admin_accredita', { p_k: k, p_soci: ids, p_importo: Number(importo), p_causale: causale, p_forza: !!forza });
+    },
+    adminStorna: function (k, idMovimento, quote, causale) {
+      return rpc('admin_storna', { p_k: k, p_movimento: idMovimento, p_quote: Number(quote), p_causale: causale || '' });
+    },
+    adminStorico: function (k, f) {
+      f = f || {};
+      return rpc('admin_storico', { p_k: k, p_socio: f.socio || null, p_mese: f.mese || null, p_tipo: f.tipo || null })
+        .then(function (l) { l.forEach(function (m) { conFoto(m.socio); }); return l; });
+    },
+    adminSocioSalva: function (k, id, d) {
+      return rpc('admin_socio_salva', { p_k: k, p_id: id || null, p_nome: d.nome, p_data_ingresso: d.dataIngresso || null,
+                                        p_attivo: d.attivo === undefined ? true : !!d.attivo });
+    },
+    adminRigenera: function (k, id) { return rpc('admin_rigenera_codice', { p_k: k, p_id: id }); },
+    adminRimuoviFoto: function (k, id) { return rpc('admin_rimuovi_foto', { p_k: k, p_id: id }); }
   };
   function argsProgetto(k, d) {
     return { p_k: k, p_titolo: d.titolo, p_descrizione: d.descrizione || '', p_quote_totali: Number(d.quoteTotali),
