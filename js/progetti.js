@@ -126,10 +126,12 @@ window.Progetti = (function () {
       '<p class="muted small">Il tuo credito: <b>' + UI.euro(me.credito) + '</b> · restano ' + plurale(resto, 'quota', 'quote') + '</p>' +
       '<div class="stepper">' +
         '<button type="button" class="btn" data-d="-1" aria-label="Una quota in meno">−</button>' +
-        '<output id="n-quote">1</output>' +
+        '<input id="n-quote" type="number" inputmode="numeric" min="1" max="' + max + '" value="1" aria-label="Numero di quote">' +
         '<button type="button" class="btn" data-d="1" aria-label="Una quota in più">+</button>' +
         '<span class="muted">' + 'quote da ' + UI.euro(p.costoQuota) + '</span>' +
       '</div>' +
+      '<p class="limite" id="limite" aria-live="polite"></p>' +
+      '<p class="muted small" id="dopo"></p>' +
       '<label class="campo"><span>Messaggio <em class="muted">facoltativo</em></span>' +
         '<input name="messaggio" maxlength="200" placeholder="Forza ranch!"></label>' +
       '<p class="errore" id="err-acq" hidden></p>' +
@@ -140,23 +142,50 @@ window.Progetti = (function () {
   function collegaAcquisto(view, p, ctx, resto) {
     var f = view.querySelector('#acquisto');
     if (!f) return;
-    var max = Math.min(resto, Math.floor((ctx.me.credito || 0) / p.costoQuota + 1e-9));
-    var n = 1, out = f.querySelector('#n-quote'), btn = f.querySelector('#compra'), err = f.querySelector('#err-acq');
-    function aggiorna() {
-      out.textContent = n;
-      btn.textContent = 'Acquista ' + plurale(n, 'quota', 'quote') + ' · ' + UI.euro(n * p.costoQuota);
-      f.querySelector('[data-d="-1"]').disabled = n <= 1;
-      f.querySelector('[data-d="1"]').disabled = n >= max;
+    var credito = Number(ctx.me.credito) || 0;
+    var perCredito = Math.floor(credito / p.costoQuota + 1e-9);
+    var max = Math.min(resto, perCredito);
+    var n = 1, inp = f.querySelector('#n-quote'), btn = f.querySelector('#compra'), err = f.querySelector('#err-acq');
+    var meno = f.querySelector('[data-d="-1"]'), piu = f.querySelector('[data-d="1"]'), limite = f.querySelector('#limite');
+
+    // spiega perché non si può andare oltre
+    function motivoMassimo() {
+      return perCredito <= resto
+        ? 'Con il tuo credito (' + UI.euro(credito) + ') puoi comprare al massimo ' + plurale(max, 'quota', 'quote') + '.'
+        : 'Restano solo ' + plurale(resto, 'quota', 'quote') + ' per questo progetto.';
     }
-    f.addEventListener('click', function (e) {
-      var dlt = Number(e.target.getAttribute('data-d') || 0);
-      if (!dlt) return;
-      n = Math.max(1, Math.min(max, n + dlt));
+    function avvisa(testo) { limite.textContent = testo; limite.hidden = !testo; }
+    function aggiorna() {
+      inp.value = n;
+      btn.textContent = 'Acquista ' + plurale(n, 'quota', 'quote') + ' · ' + UI.euro(n * p.costoQuota);
+      meno.classList.toggle('al-limite', n <= 1);
+      piu.classList.toggle('al-limite', n >= max);
+      meno.setAttribute('aria-disabled', n <= 1);
+      piu.setAttribute('aria-disabled', n >= max);
+      f.querySelector('#dopo').textContent = 'Credito dopo l\'acquisto: ' + UI.euro(credito - n * p.costoQuota);
+    }
+    function imposta(valore) {
       err.hidden = true;
+      if (!(valore >= 1)) { n = 1; avvisa('Il minimo è 1 quota.'); }
+      else if (valore > max) { n = max; avvisa(motivoMassimo()); }
+      else { n = Math.floor(valore); avvisa(''); }
       aggiorna();
+    }
+    meno.addEventListener('click', function () { imposta(n - 1); });
+    piu.addEventListener('click', function () { imposta(n + 1); });
+    // scrittura a mano: corregge solo quando il campo è completo, così si può cancellare e riscrivere
+    inp.addEventListener('change', function () { imposta(Number(inp.value)); });
+    inp.addEventListener('input', function () {
+      var v = Number(inp.value);
+      if (inp.value === '') return;
+      if (v > max) imposta(v);
+      else if (v >= 1) { n = Math.floor(v); avvisa(''); btn.textContent = 'Acquista ' + plurale(n, 'quota', 'quote') + ' · ' + UI.euro(n * p.costoQuota);
+        f.querySelector('#dopo').textContent = 'Credito dopo l\'acquisto: ' + UI.euro(credito - n * p.costoQuota);
+        meno.classList.toggle('al-limite', n <= 1); piu.classList.toggle('al-limite', n >= max); }
     });
     f.addEventListener('submit', function (e) {
       e.preventDefault();
+      imposta(Number(inp.value));
       btn.disabled = true;
       btn.textContent = 'Acquisto in corso…';
       RanchAPI.acquistaQuote(ctx.k, p.id, n, f.messaggio.value.trim()).then(function () {
@@ -171,6 +200,7 @@ window.Progetti = (function () {
         aggiorna();
       });
     });
+    avvisa('');
     aggiorna();
   }
 
