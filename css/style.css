@@ -405,3 +405,50 @@ body:has(.demo-banner:not([hidden])) .view { padding-bottom: 56px; }
 .tabella-grafico table { width: 100%; border-collapse: collapse; margin-top: 8px; }
 .tabella-grafico th, .tabella-grafico td { text-align: left; padding: 6px 4px; border-top: 1px solid var(--line); }
 .tabella-grafico th:nth-child(n+3), .tabella-grafico td:nth-child(n+3) { text-align: right; white-space: nowrap; }
+
+/* ---------------- Eventi ---------------- */
+.foto-vuota.evento span { color: var(--accent); opacity: .45; display: flex; }
+.card-evento.passato { opacity: .7; }
+.quando { display: flex; align-items: center; gap: 6px; margin: 6px 0 0; font-size: 14px; color: var(--ink); }
+.quando svg { color: var(--accent); flex: none; }
+.quando.grande { font-size: 17px; font-weight: 600; margin: 0 0 12px; }
+.quando.proposte { color: var(--muted); }
+.mini-date { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.mini-data { font-size: 12px; padding: 3px 8px; border-radius: 99px; background: var(--bg); color: var(--muted); }
+.mini-data b { color: var(--ink); }
+.mini-data.mia { background: #ffe3e8; color: #b0193a; }
+.mini-data.mia b { color: #b0193a; }
+@media (prefers-color-scheme: dark) { .mini-data.mia { background: #4b1528; color: #f4c0d1; } .mini-data.mia b { color: #f4c0d1; } }
+
+.date-candidate { list-style: none; margin: 8px 0 16px; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.date-candidate li { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--card); }
+.date-candidate li.top { border: 2px solid var(--accent); }
+.date-candidate .cal { flex: none; width: 52px; text-align: center; border-radius: 10px; background: var(--accent-bg); padding: 4px 0; line-height: 1.15; }
+.date-candidate .cal span { display: block; font-size: 11px; text-transform: uppercase; color: var(--accent); }
+.date-candidate .cal b { display: block; font-size: 22px; color: var(--ink); }
+.date-candidate .info { flex: 1; min-width: 0; }
+.date-candidate .info p { margin: 0; }
+.piu-votata { color: var(--accent); font-weight: 600; }
+.votanti { display: flex; align-items: center; margin: 4px 0; min-height: 24px; }
+.votanti > span { margin-right: -6px; border-radius: 50%; box-shadow: 0 0 0 2px var(--card); display: inline-flex; }
+.votanti em { font-style: normal; font-size: 12px; color: var(--muted); margin-left: 10px; }
+.date-candidate .btn.piccolo { margin-top: 6px; }
+.cuore-data {
+  flex: none; display: inline-flex; flex-direction: column; align-items: center; gap: 0; border: 1px solid var(--line);
+  border-radius: 12px; background: var(--card); color: var(--muted); padding: 6px 10px; cursor: pointer; font: inherit; font-size: 13px; font-weight: 600;
+  touch-action: manipulation; -webkit-tap-highlight-color: transparent; min-width: 48px;
+}
+.cuore-data svg { fill: none; stroke: currentColor; stroke-width: 2; }
+.cuore-data.acceso { color: #e0244a; border-color: #f2a3b3; background: #fff0f3; }
+.cuore-data.acceso svg { fill: #ff3b5c; stroke: #ff3b5c; }
+@media (prefers-color-scheme: dark) { .cuore-data.acceso { background: #3a1420; border-color: #7a2a3e; color: #ff8aa0; } }
+.cuore-data.pop svg { animation: pop .35s ease-out; }
+@media (prefers-reduced-motion: reduce) { .cuore-data.pop svg { animation: none; } }
+
+.riga-data { display: grid; grid-template-columns: 1fr 1fr auto; gap: 8px; align-items: end; margin-bottom: 8px; }
+.riga-data label { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.riga-data em { font-style: normal; }
+.riga-data input { font: inherit; padding: 8px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); min-width: 0; }
+.riga-data .togli { width: 40px; padding: 0; font-size: 20px; }
+.riga-data .voti-n { grid-column: 1 / -1; margin-top: -4px; }
+#blocco-prog[hidden], #blocco-date[hidden] { display: none; }

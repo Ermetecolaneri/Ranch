@@ -44,6 +44,16 @@
   // ---------- modalità demo (stesse regole del backend) ----------
   var D = window.RANCH_DEMO;
   if (D && !D.cuori) D.cuori = { p01: ['s01', 's04', 's07'], p02: ['s03'] };
+  if (D && !D.eventi) D.eventi = [
+    { id: 'e01', titolo: 'Gara sociale d\'inverno', descrizione: 'Tre manche sul tracciato completo, poi pranzo tutti insieme.', foto: '',
+      stato: 'da_programmare', dataInizio: null, dataFine: null, creatoIl: '2026-11-10T10:00:00', date: [
+        { id: 'd1', dataInizio: '2026-12-12', dataFine: '2026-12-13', voti: ['s01', 's02', 's05'] },
+        { id: 'd2', dataInizio: '2026-12-19', dataFine: '2026-12-19', voti: ['s02', 's04'] },
+        { id: 'd3', dataInizio: '2027-01-09', dataFine: '2027-01-10', voti: [] } ] },
+    { id: 'e02', titolo: 'Giornata lavori pista', descrizione: 'Sistemiamo la curva La Parente e le reti di protezione.', foto: '',
+      stato: 'programmato', dataInizio: '2026-11-29', dataFine: '2026-11-29', creatoIl: '2026-11-01T10:00:00', date: [] },
+    { id: 'e03', titolo: 'Inaugurazione ranch', descrizione: 'Primo giro ufficiale e foto di gruppo.', foto: '',
+      stato: 'programmato', dataInizio: '2026-10-04', dataFine: '2026-10-04', creatoIl: '2026-09-01T10:00:00', date: [] } ];
   function clone(x) { return JSON.parse(JSON.stringify(x)); }
   function attesa(v) { return new Promise(function (ok) { setTimeout(function () { ok(clone(v)); }, 150); }); }
   function rifiuto(msg) { return new Promise(function (_, ko) { setTimeout(function () { ko(errore(msg)); }, 150); }); }
@@ -241,6 +251,62 @@
         raccolta: Object.keys(giorni).sort().map(function (g) { return { giorno: g, importo: giorni[g] }; }) });
     },
 
+    // ----- eventi (demo) -----
+    getEventi: function (k) {
+      var io = perCodice(k), t = oggi();
+      var l = D.eventi.map(function (e) { return eventoPubblico(e, io); });
+      function rango(e) { return e.stato === 'programmato' && !e.concluso ? 0 : e.stato === 'da_programmare' ? 1 : 2; }
+      l.sort(function (a, b) { return (rango(a) - rango(b)) || ((a.dataInizio || '') < (b.dataInizio || '') ? (rango(a) === 2 ? 1 : -1) : (rango(a) === 2 ? -1 : 1)); });
+      return attesa(l);
+    },
+    getEvento: function (id, k) {
+      var e = D.eventi.filter(function (x) { return x.id === id; })[0];
+      if (!e) return rifiuto('Evento non trovato.');
+      return attesa(eventoPubblico(e, perCodice(k)));
+    },
+    votaData: function (k, idData) {
+      var s = perCodice(k); if (!s) return rifiuto('Link personale non valido.');
+      var e = D.eventi.filter(function (x) { return x.date.some(function (d) { return d.id === idData; }); })[0];
+      if (!e) return rifiuto('Data non trovata.');
+      if (e.stato !== 'da_programmare') return rifiuto('L\'evento è già programmato: non si vota più.');
+      var d = e.date.filter(function (x) { return x.id === idData; })[0], i = d.voti.indexOf(s.id);
+      if (i >= 0) d.voti.splice(i, 1); else d.voti.push(s.id);
+      return attesa({ mioVoto: i < 0, voti: d.voti.length });
+    },
+    adminEventoSalva: function (k, id, d) {
+      var a = perCodice(k); if (!a || !a.admin) return rifiuto('Funzione riservata all\'admin.');
+      if (!String(d.titolo || '').trim()) return rifiuto('Scrivi un titolo.');
+      if (d.stato === 'programmato' && !d.dataInizio) return rifiuto('Scegli la data di inizio.');
+      if (d.stato === 'programmato' && d.dataFine && d.dataFine < d.dataInizio) return rifiuto('La data di fine non può essere prima dell\'inizio.');
+      if (d.stato === 'da_programmare' && !(d.date || []).length) return rifiuto('Aggiungi almeno una data da proporre.');
+      var e = id ? D.eventi.filter(function (x) { return x.id === id; })[0] : null;
+      if (!e) { e = { id: 'e' + Date.now(), foto: '', creatoIl: new Date().toISOString(), date: [] }; D.eventi.push(e); }
+      var vecchie = e.date;
+      Object.assign(e, { titolo: d.titolo.trim(), descrizione: (d.descrizione || '').trim(), stato: d.stato,
+        dataInizio: d.stato === 'programmato' ? d.dataInizio : null, dataFine: d.stato === 'programmato' ? (d.dataFine || d.dataInizio) : null });
+      e.date = (d.date || []).map(function (x, i) {
+        var v = vecchie.filter(function (y) { return y.id === x.id; })[0];
+        return { id: v ? v.id : 'd' + Date.now() + i, dataInizio: x.dataInizio, dataFine: x.dataFine || x.dataInizio, voti: v ? v.voti : [] };
+      });
+      return attesa(eventoPubblico(e, a));
+    },
+    adminEventoFissa: function (k, idData) {
+      var a = perCodice(k); if (!a || !a.admin) return rifiuto('Funzione riservata all\'admin.');
+      var e = D.eventi.filter(function (x) { return x.date.some(function (d) { return d.id === idData; }); })[0];
+      var d = e.date.filter(function (x) { return x.id === idData; })[0];
+      Object.assign(e, { stato: 'programmato', dataInizio: d.dataInizio, dataFine: d.dataFine });
+      return attesa(eventoPubblico(e, a));
+    },
+    adminEventoElimina: function (k, id) {
+      var a = perCodice(k); if (!a || !a.admin) return rifiuto('Funzione riservata all\'admin.');
+      D.eventi = D.eventi.filter(function (x) { return x.id !== id; });
+      return attesa({ ok: true });
+    },
+    caricaFotoEvento: function (k, id, dataUrl) {
+      var e = D.eventi.filter(function (x) { return x.id === id; })[0]; if (e) e.foto = dataUrl;
+      return attesa({ foto: dataUrl });
+    },
+
     // ----- admin (demo) -----
     adminGet: function (k) {
       var a = perCodice(k);
@@ -350,6 +416,15 @@
     var s = D.soci.filter(function (x) { return x.id === id; })[0] || { id: id, nome: '?' };
     return { id: s.id, nome: s.nome, foto: s.foto || '', numeroGara: s.numeroGara || null, numeroFont: s.numeroFont, numeroColore: s.numeroColore };
   }
+  function eventoPubblico(e, io) {
+    return { id: e.id, titolo: e.titolo, descrizione: e.descrizione, foto: e.foto || '', stato: e.stato,
+      dataInizio: e.dataInizio, dataFine: e.dataFine, creatoIl: e.creatoIl,
+      concluso: e.stato === 'programmato' && e.dataFine < oggi(),
+      date: e.date.slice().sort(function (a, b) { return a.dataInizio < b.dataInizio ? -1 : 1; }).map(function (d) {
+        return { id: d.id, dataInizio: d.dataInizio, dataFine: d.dataFine, voti: d.voti.length,
+          mioVoto: !!(io && d.voti.indexOf(io.id) >= 0), votanti: d.voti.map(miniSocio) };
+      }) };
+  }
   function progettoPubblico(p) {
     var mov = D.movimenti.filter(function (m) { return m.progetto === p.id; });
     var raccolto = mov.reduce(function (t, m) { return t - m.importo; }, 0);
@@ -415,6 +490,26 @@
     },
     cuore: function (k, id) { return rpc('cuore', { p_k: k, p_id: id }); },
     getAndamento: function () { return rpc('get_andamento'); },
+
+    // ----- eventi -----
+    getEventi: function (k) {
+      return rpc('get_eventi', { p_k: k || null }).then(function (l) { l.forEach(conFotoEvento); return l; });
+    },
+    getEvento: function (id, k) {
+      if (!/^[0-9a-f-]{36}$/i.test(id)) return Promise.reject(errore('Evento non trovato.'));
+      return rpc('get_evento', { p_id: id, p_k: k || null }).then(conFotoEvento);
+    },
+    votaData: function (k, idData) { return rpc('vota_data', { p_k: k, p_data: idData }); },
+    adminEventoSalva: function (k, id, d) {
+      return rpc('admin_evento_salva', { p_k: k, p_id: id || null, p_titolo: d.titolo, p_descrizione: d.descrizione || '',
+        p_stato: d.stato, p_inizio: d.dataInizio || null, p_fine: d.dataFine || null, p_date: d.date || [] }).then(conFotoEvento);
+    },
+    adminEventoFissa: function (k, idData) { return rpc('admin_evento_fissa', { p_k: k, p_data: idData }).then(conFotoEvento); },
+    adminEventoElimina: function (k, id) { return rpc('admin_evento_elimina', { p_k: k, p_id: id }); },
+    caricaFotoEvento: function (k, id, dataUrl) {
+      return funzione('carica-foto', { k: k, foto: dataUrl, evento: id })
+        .then(function (r) { r.foto = urlFoto(r.foto, 'eventi'); return r; });
+    },
     getProgetto: function (id) {
       if (!/^[0-9a-f-]{36}$/i.test(id)) return Promise.reject(errore('Progetto non trovato.'));
       return rpc('get_progetto', { p_id: id }).then(function (d) {
@@ -468,6 +563,12 @@
   function argsProgetto(k, d) {
     return { p_k: k, p_titolo: d.titolo, p_descrizione: d.descrizione || '', p_quote_totali: Number(d.quoteTotali),
              p_costo_quota: Number(d.costoQuota), p_scadenza: d.scadenza };
+  }
+  function conFotoEvento(e) {
+    if (!e) return e;
+    e.foto = urlFoto(e.foto, 'eventi');
+    (e.date || []).forEach(function (d) { (d.votanti || []).forEach(conFoto); });
+    return e;
   }
   function conFotoProgetto(p) {
     if (!p) return p;

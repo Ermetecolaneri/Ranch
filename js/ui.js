@@ -67,6 +67,21 @@ window.UI = (function () {
     return isNaN(d) ? '' : d.toLocaleDateString('it-IT', { month: 'long', year: 'numeric' });
   }
 
+  // "sabato 12 dicembre 2026", "12–13 dicembre 2026", "30 dic 2026 – 2 gen 2027"
+  function intervallo(inizio, fine) {
+    if (!inizio) return '';
+    var a = new Date(inizio + 'T12:00:00'), b = new Date((fine || inizio) + 'T12:00:00');
+    if (!fine || fine === inizio) return a.toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+    if (a.getMonth() === b.getMonth() && a.getFullYear() === b.getFullYear())
+      return a.getDate() + '–' + b.toLocaleDateString('it-IT', { day: 'numeric', month: 'long', year: 'numeric' });
+    var f = { day: 'numeric', month: 'short', year: 'numeric' };
+    return a.toLocaleDateString('it-IT', f) + ' – ' + b.toLocaleDateString('it-IT', f);
+  }
+  function giornoBreve(iso) {
+    var d = new Date(iso + 'T12:00:00');
+    return { sett: d.toLocaleDateString('it-IT', { weekday: 'short' }), giorno: d.getDate(), mese: d.toLocaleDateString('it-IT', { month: 'short' }) };
+  }
+
   function toast(msg) {
     var t = document.createElement('div');
     t.className = 'toast';
@@ -83,5 +98,5 @@ window.UI = (function () {
   }
 
   return { esc: esc, avatar: avatar, numero: numero, FONT_NUMERO: FONT_NUMERO, COLORI_NUMERO: COLORI_NUMERO,euro: euro, euroSegno: euroSegno, data: data, meseAnno: meseAnno,
-           toast: toast, caricamento: caricamento, errore: errore };
+           intervallo: intervallo, giornoBreve: giornoBreve, toast: toast, caricamento: caricamento, errore: errore };
 })();

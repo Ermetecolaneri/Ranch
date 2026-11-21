@@ -34,7 +34,7 @@
       '<span>' + UI.esc(ctx.me.nome.split(' ')[0]) + '</span></a>';
   }
 
-  var IN_ARRIVO = { mezzi: 'Mezzi', telemetria: 'Telemetria', eventi: 'Eventi', cassa: 'Cassa' };
+  var IN_ARRIVO = { mezzi: 'Mezzi', telemetria: 'Telemetria', cassa: 'Cassa' };
 
   function route() {
     var parti = (location.hash.replace(/^#\/?/, '') || 'soci').split('/');
@@ -50,6 +50,9 @@
     } else if (sez === 'progetti') {
       if (parti[1]) Progetti.scheda(view, decodeURIComponent(parti[1]), ctx);
       else Progetti.lista(view, ctx);
+    } else if (sez === 'eventi') {
+      if (parti[1]) Eventi.scheda(view, decodeURIComponent(parti[1]), ctx);
+      else Eventi.lista(view, ctx);
     } else if (sez === 'admin') {
       Admin.mostra(view, parti[1], ctx);
     } else if (IN_ARRIVO[sez]) {
