@@ -43,6 +43,7 @@
 
   // ---------- modalità demo (stesse regole del backend) ----------
   var D = window.RANCH_DEMO;
+  if (D && !D.cuori) D.cuori = { p01: ['s01', 's04', 's07'], p02: ['s03'] };
   function clone(x) { return JSON.parse(JSON.stringify(x)); }
   function attesa(v) { return new Promise(function (ok) { setTimeout(function () { ok(clone(v)); }, 150); }); }
   function rifiuto(msg) { return new Promise(function (_, ko) { setTimeout(function () { ko(errore(msg)); }, 150); }); }
@@ -125,8 +126,11 @@
     },
 
     // ----- progetti (demo) -----
-    getProgetti: function () {
-      var lista = D.progetti.filter(function (p) { return p.stato !== 'eliminato'; }).map(progettoPubblico);
+    getProgetti: function (k) {
+      var io = perCodice(k);
+      var lista = D.progetti.filter(function (p) { return p.stato !== 'eliminato'; }).map(function (p) {
+        var x = progettoPubblico(p); x.mioCuore = !!(io && (D.cuori[p.id] || []).indexOf(io.id) >= 0); return x;
+      });
       var ordine = { raccolta: 0, sviluppo: 1, chiuso: 2 };
       lista.sort(function (a, b) { return (ordine[a.stato] - ordine[b.stato]) || (a.scadenza < b.scadenza ? -1 : 1); });
       return attesa({ progetti: lista, kpi: {
@@ -215,6 +219,26 @@
       if (p.creatoDa !== s.id && !s.admin) return rifiuto('Solo chi ha proposto il progetto può cambiarne la foto.');
       p.foto = dataUrl;
       return attesa({ foto: dataUrl });
+    },
+
+    cuore: function (k, id) {
+      var s = perCodice(k);
+      if (!s) return rifiuto('Link personale non valido.');
+      var l = D.cuori[id] || (D.cuori[id] = []), i = l.indexOf(s.id);
+      if (i >= 0) l.splice(i, 1); else l.push(s.id);
+      return attesa({ mioCuore: i < 0, cuori: l.length });
+    },
+    getAndamento: function () {
+      var giorni = {};
+      D.movimenti.forEach(function (m) {
+        var p = trovaProgetto(m.progetto); if (!p) return;
+        var g = String(m.data).slice(0, 10); giorni[g] = (giorni[g] || 0) - m.importo;
+      });
+      return attesa({ oggi: oggi(),
+        progetti: D.progetti.filter(function (p) { return p.stato !== 'eliminato'; })
+          .map(function (p) { return { id: p.id, titolo: p.titolo, scadenza: p.scadenza, stato: p.stato, totale: p.quoteTotali * p.costoQuota }; })
+          .sort(function (a, b) { return a.scadenza < b.scadenza ? -1 : 1; }),
+        raccolta: Object.keys(giorni).sort().map(function (g) { return { giorno: g, importo: giorni[g] }; }) });
     },
 
     // ----- admin (demo) -----
@@ -336,6 +360,7 @@
              quoteVendute: quoteVendute(p.id),
              sostenitori: Object.keys(perSocio).filter(function (k) { return perSocio[k] > 0; }).length,
              scadenza: p.scadenza, scaduto: p.scadenza < oggi(), stato: p.stato, creatoIl: p.creatoIl,
+             cuori: (D.cuori[p.id] || []).length,
              creatoDa: miniSocio(p.creatoDa) };
   }
   function validaProgetto(d) {
@@ -385,9 +410,11 @@
     caricaFoto: function (k, dataUrl) { return funzione('carica-foto', { k: k, foto: dataUrl }).then(conFoto); },
 
     // ----- progetti -----
-    getProgetti: function () {
-      return rpc('get_progetti').then(function (d) { d.progetti.forEach(conFotoProgetto); return d; });
+    getProgetti: function (k) {
+      return rpc('get_progetti', { p_k: k || null }).then(function (d) { d.progetti.forEach(conFotoProgetto); return d; });
     },
+    cuore: function (k, id) { return rpc('cuore', { p_k: k, p_id: id }); },
+    getAndamento: function () { return rpc('get_andamento'); },
     getProgetto: function (id) {
       if (!/^[0-9a-f-]{36}$/i.test(id)) return Promise.reject(errore('Progetto non trovato.'));
       return rpc('get_progetto', { p_id: id }).then(function (d) {

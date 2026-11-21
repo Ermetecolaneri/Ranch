@@ -35,17 +35,21 @@ window.Progetti = (function () {
   // ---------- elenco ----------
   function lista(view, ctx) {
     view.innerHTML = UI.caricamento();
-    RanchAPI.getProgetti().then(function (d) {
+    RanchAPI.getProgetti(ctx.k).then(function (d) {
       view.innerHTML =
         '<div class="kpi-centro">' +
           '<div class="kpi"><span>Progetti</span><strong>' + d.kpi.progetti + '</strong></div>' +
           '<div class="kpi"><span>Raccolti</span><strong>' + UI.euro(d.kpi.raccolto) + ' <small>/ ' + UI.euro(d.kpi.totale) + '</small></strong></div>' +
+          '<button type="button" class="kpi kpi-btn" id="apri-grafico" aria-label="Apri il grafico dell\'andamento">' +
+            '<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M4 20V10M10 20V6M16 20v-8M3 20h18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>' +
+            '<path d="M4 9l6-4 6 5 5-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>' +
+            '<span>Grafico</span></button>' +
         '</div>' +
         (ctx.me ? '<div class="azioni-sezione"><button type="button" class="btn primario" id="nuovo">+ Proponi un progetto</button></div>' : '') +
         (d.progetti.length ?
           '<div class="griglia-progetti">' + d.progetti.map(function (p) {
             return '<a class="card-progetto" href="#/progetti/' + esc(p.id) + '">' +
-              '<div class="foto-box">' + foto(p, 'foto-progetto') + badge(p) + '</div>' +
+              '<div class="foto-box">' + foto(p, 'foto-progetto') + badge(p) + bottoneCuore(p) + '</div>' +
               '<div class="corpo">' +
                 '<h2>' + esc(p.titolo) + '</h2>' +
                 (p.descrizione ? '<p class="descr">' + esc(p.descrizione) + '</p>' : '') +
@@ -58,7 +62,43 @@ window.Progetti = (function () {
           : '<div class="vuoto"><h2>Nessun progetto per ora</h2><p class="muted">Il primo progetto del ranch può essere il tuo.</p></div>');
       var b = view.querySelector('#nuovo');
       if (b) b.addEventListener('click', function () { form(ctx, null); });
+      view.querySelector('#apri-grafico').addEventListener('click', Grafico.apri);
+      view.querySelectorAll('[data-cuore]').forEach(function (c) {
+        c.addEventListener('click', function (e) {
+          e.preventDefault();
+          e.stopPropagation();
+          clickCuore(c, ctx);
+        });
+      });
     }).catch(function (e) { view.innerHTML = UI.errore(e); });
+  }
+
+  // ---------- cuori ----------
+  var CUORE = '<svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M12 20.5s-7.5-4.6-9.6-9.1C1 8.3 2.9 4.5 6.6 4.5c2.2 0 3.9 1.3 5.4 3.3 1.5-2 3.2-3.3 5.4-3.3 3.7 0 5.6 3.8 4.2 6.9-2.1 4.5-9.6 9.1-9.6 9.1z"/></svg>';
+  function bottoneCuore(p) {
+    return '<button type="button" class="cuore' + (p.mioCuore ? ' acceso' : '') + '" data-cuore="' + esc(p.id) + '" aria-pressed="' + !!p.mioCuore + '" ' +
+      'aria-label="' + (p.mioCuore ? 'Togli il cuore' : 'Metti un cuore') + '">' + CUORE + '<span>' + (p.cuori || 0) + '</span></button>';
+  }
+  function clickCuore(c, ctx) {
+    if (!ctx.k || !ctx.me) { UI.toast('Apri il tuo link personale per mettere un cuore'); return; }
+    if (c.classList.contains('attesa')) return;
+    var acceso = !c.classList.contains('acceso'), n = Number(c.querySelector('span').textContent) || 0;
+    // aggiorna subito, poi conferma con il database
+    function imposta(on, num) {
+      c.classList.toggle('acceso', on);
+      c.setAttribute('aria-pressed', on);
+      c.setAttribute('aria-label', on ? 'Togli il cuore' : 'Metti un cuore');
+      c.querySelector('span').textContent = num;
+    }
+    imposta(acceso, n + (acceso ? 1 : -1));
+    if (acceso) { c.classList.remove('pop'); void c.offsetWidth; c.classList.add('pop'); }
+    c.classList.add('attesa');
+    RanchAPI.cuore(ctx.k, c.getAttribute('data-cuore')).then(function (r) {
+      imposta(r.mioCuore, r.cuori);
+    }).catch(function (e) {
+      imposta(!acceso, n);
+      UI.toast(e.message || 'Non riuscito, riprova');
+    }).then(function () { c.classList.remove('attesa'); });
   }
 
   // ---------- dettaglio ----------

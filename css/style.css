@@ -214,7 +214,7 @@ h2 { font-size: 16px; margin: 24px 0 8px; font-weight: 600; }
 body:has(.demo-banner:not([hidden])) .view { padding-bottom: 56px; }
 
 /* ---------------- Progetti ---------------- */
-.kpi-centro { display: flex; justify-content: center; gap: 12px; margin: 4px 0 16px; flex-wrap: wrap; }
+.kpi-centro { display: flex; justify-content: center; align-items: stretch; gap: 10px; margin: 4px 0 16px; }
 .kpi {
   background: var(--card); border: 1px solid var(--line); border-radius: var(--radius);
   padding: 12px 20px; text-align: center; min-width: 140px;
@@ -350,3 +350,58 @@ body:has(.demo-banner:not([hidden])) .view { padding-bottom: 56px; }
 .tipo-addebito { background: var(--t-red); color: var(--i-red); }
 .tipo-acquisto { background: var(--t-blue); color: var(--i-blue); }
 .tipo-storno, .tipo-rimborso { background: var(--t-yellow); color: var(--i-yellow); }
+
+/* ---------------- Cuori ---------------- */
+.cuore {
+  position: absolute; top: 10px; right: 10px; display: inline-flex; align-items: center; gap: 4px;
+  min-height: 36px; padding: 0 12px 0 10px; border-radius: 99px; border: none; cursor: pointer;
+  background: rgba(0,0,0,.45); color: #fff; font: inherit; font-size: 14px; font-weight: 600;
+  touch-action: manipulation; -webkit-tap-highlight-color: transparent;
+}
+.cuore svg { fill: none; stroke: #fff; stroke-width: 2; }
+.cuore.acceso svg { fill: #ff3b5c; stroke: #ff3b5c; }
+.cuore.pop svg { animation: pop .35s ease-out; }
+@keyframes pop { 0% { transform: scale(1); } 40% { transform: scale(1.35); } 100% { transform: scale(1); } }
+@media (prefers-reduced-motion: reduce) { .cuore.pop svg { animation: none; } }
+
+/* ---------------- Grafico ---------------- */
+:root { --serie-obiettivo: #5b7fd6; --serie-raccolto: #2b9348; }
+@media (prefers-color-scheme: dark) { :root { --serie-obiettivo: #6f8fe6; --serie-raccolto: #3fa86c; } }
+.kpi-btn { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; min-width: 0; cursor: pointer; font: inherit; color: var(--accent); }
+@media (max-width: 480px) {
+  .kpi { min-width: 0; padding: 10px 12px; }
+  .kpi strong { font-size: 18px; }
+  .kpi small { font-size: 13px; }
+  .kpi-btn { padding: 8px 10px; }
+}
+.kpi-btn span { color: var(--accent); font-weight: 600; font-size: 14px; }
+.kpi-btn:hover { border-color: var(--accent); }
+.modal.grafico { max-width: 720px; }
+.testa-grafico { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.testa-grafico h2 { margin: 0; }
+.legenda { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 13px; color: var(--muted); margin: 12px 0 4px; }
+.legenda span, .g-tooltip span { display: inline-flex; align-items: center; gap: 6px; }
+.lg-barra { display: inline-block; width: 10px; height: 12px; border-radius: 3px 3px 0 0; background: var(--serie-obiettivo); }
+.lg-linea { display: inline-block; width: 16px; height: 2px; background: var(--serie-raccolto); }
+.area-grafico { position: relative; }
+.area-grafico svg { display: block; width: 100%; height: auto; touch-action: pan-y; }
+.g-griglia { stroke: var(--line); stroke-width: 1; }
+.g-base { stroke: var(--muted); stroke-width: 1; }
+.g-tacca { stroke: var(--muted); }
+.g-asse { fill: var(--muted); font-size: 11px; }
+.g-valore { fill: var(--ink); font-size: 12px; font-weight: 600; }
+.g-oggi { stroke: var(--muted); stroke-dasharray: 4 4; }
+.g-barra { fill: var(--serie-obiettivo); }
+.g-linea { fill: none; stroke: var(--serie-raccolto); stroke-width: 2; stroke-linejoin: round; }
+.g-punto { fill: var(--serie-raccolto); stroke: var(--card); stroke-width: 2; }
+.g-cursore { stroke: var(--ink); stroke-width: 1; opacity: .35; }
+.g-tooltip {
+  position: absolute; top: 0; z-index: 2; pointer-events: none; display: flex; flex-direction: column; gap: 2px;
+  background: var(--card); color: var(--ink); border: 1px solid var(--line); border-radius: 8px;
+  padding: 6px 10px; font-size: 12px; box-shadow: 0 4px 12px rgba(0,0,0,.12); max-width: 260px;
+}
+.tabella-grafico { margin-top: 8px; font-size: 14px; }
+.tabella-grafico summary { cursor: pointer; color: var(--accent); }
+.tabella-grafico table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+.tabella-grafico th, .tabella-grafico td { text-align: left; padding: 6px 4px; border-top: 1px solid var(--line); }
+.tabella-grafico th:nth-child(n+3), .tabella-grafico td:nth-child(n+3) { text-align: right; white-space: nowrap; }
