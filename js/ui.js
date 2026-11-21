@@ -30,7 +30,28 @@ window.UI = (function () {
       esc(iniziali(socio.nome)) + '</span>';
   }
 
-  var fmtEuro = new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR', maximumFractionDigits: 2, minimumFractionDigits: 0 });
+  // Stili del numero di gara: devono coincidere con i valori ammessi dal database
+  var FONT_NUMERO = {
+    corsa:     { nome: 'Corsa',     famiglia: "'Racing Sans One', system-ui, sans-serif" },
+    squadrato: { nome: 'Squadrato', famiglia: "'Bungee', system-ui, sans-serif" },
+    stencil:   { nome: 'Stencil',   famiglia: "'Black Ops One', system-ui, sans-serif" }
+  };
+  var COLORI_NUMERO = {
+    rosso: '#d62828', arancione: '#f77f00', giallo: '#fcbf49', oro: '#c9a227',
+    verde: '#2b9348', acqua: '#00a6a6', azzurro: '#4cc9f0', blu: '#1d4ed8',
+    viola: '#7b2cbf', rosa: '#ff4d9d', nero: '#111111', bianco: '#ffffff'
+  };
+
+  // Numero di gara grande, con il font e il colore scelti dal socio
+  function numero(socio, px) {
+    if (!socio.numeroGara) return '';
+    var f = FONT_NUMERO[socio.numeroFont] ? socio.numeroFont : 'corsa';
+    var c = COLORI_NUMERO[socio.numeroColore] ? socio.numeroColore : 'rosso';
+    return '<span class="numero-gara nf-' + f + ' nc-' + c + '" style="font-size:' + (px || 40) + 'px" ' +
+      'aria-label="Numero ' + esc(socio.numeroGara) + '">' + esc(socio.numeroGara) + '</span>';
+  }
+
+  var fmtEuro =new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR', maximumFractionDigits: 2, minimumFractionDigits: 0 });
   function euro(n) { return fmtEuro.format(Number(n) || 0); }
   function euroSegno(n) { n = Number(n) || 0; return (n > 0 ? '+' : n < 0 ? '−' : '') + fmtEuro.format(Math.abs(n)); }
 
@@ -61,6 +82,6 @@ window.UI = (function () {
     return '<p class="errore pad">' + esc(msg) + '</p>';
   }
 
-  return { esc: esc, avatar: avatar, euro: euro, euroSegno: euroSegno, data: data, meseAnno: meseAnno,
+  return { esc: esc, avatar: avatar, numero: numero, FONT_NUMERO: FONT_NUMERO, COLORI_NUMERO: COLORI_NUMERO,euro: euro, euroSegno: euroSegno, data: data, meseAnno: meseAnno,
            toast: toast, caricamento: caricamento, errore: errore };
 })();

@@ -71,6 +71,7 @@ h2 { font-size: 16px; margin: 24px 0 8px; font-weight: 600; }
 
 .metriche { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 0 0 16px; }
 .metrica { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 14px; }
+.metriche.una { grid-template-columns: 1fr; }
 .metrica span { display: block; font-size: 13px; color: var(--muted); }
 .metrica strong { font-size: 22px; font-weight: 600; }
 
@@ -95,18 +96,54 @@ h2 { font-size: 16px; margin: 24px 0 8px; font-weight: 600; }
 }
 .card-socio:hover { border-color: var(--muted); }
 .card-socio.io { border: 2px solid var(--accent); }
-.card-socio .avatar { margin-bottom: 8px; }
-.card-socio .nome { font-weight: 600; line-height: 1.3; }
+.card-socio .testa { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 10px; min-height: 52px; }
+.card-socio .nome { font-weight: 600; line-height: 1.3; margin-bottom: 6px; }
 .card-socio .nome em { font-style: normal; font-weight: 400; color: var(--muted); font-size: 13px; }
-.card-socio .numero { font-size: 13px; color: var(--accent); font-weight: 600; margin-bottom: 6px; }
-.card-socio .numero.vuoto { color: var(--muted); font-weight: 400; }
+
+/* Numero di gara: font e colore scelti dal socio, con un contorno che lo stacca dallo sfondo */
+.numero-gara {
+  line-height: 1; letter-spacing: .01em; white-space: nowrap;
+  -webkit-text-stroke: .045em var(--num-bordo, rgba(0,0,0,.55)); paint-order: stroke fill;
+}
+.nf-corsa { font-family: 'Racing Sans One', system-ui, sans-serif; font-style: italic; }
+.nf-squadrato { font-family: 'Bungee', system-ui, sans-serif; }
+.nf-stencil { font-family: 'Black Ops One', system-ui, sans-serif; }
+.nc-rosso { color: #d62828; } .nc-arancione { color: #f77f00; } .nc-giallo { color: #fcbf49; }
+.nc-oro { color: #c9a227; } .nc-verde { color: #2b9348; } .nc-acqua { color: #00a6a6; }
+.nc-azzurro { color: #4cc9f0; } .nc-blu { color: #1d4ed8; } .nc-viola { color: #7b2cbf; }
+.nc-rosa { color: #ff4d9d; } .nc-bianco { color: #ffffff; }
+.nc-nero { color: #111111; --num-bordo: rgba(255,255,255,.85); }
+@media (prefers-color-scheme: light) { .nc-nero { --num-bordo: transparent; } }
+@media (prefers-color-scheme: dark) { .numero-gara { --num-bordo: rgba(0,0,0,.6); } .nc-nero { --num-bordo: rgba(255,255,255,.85); } }
+
+.numero-editor { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px 12px; margin: 12px 0 0; }
+.numero-editor legend { font-size: 14px; padding: 0 4px; }
+.numero-riga { display: flex; align-items: center; gap: 16px; min-height: 64px; }
+.numero-riga input { width: 96px; font: inherit; padding: 8px 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); }
+.numero-editor .sotto { font-size: 13px; color: var(--muted); margin: 10px 0 6px; }
+.scelte-font { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.scelta-font input, .scelta-colore input { position: absolute; opacity: 0; pointer-events: none; }
+.scelta-font span {
+  display: block; text-align: center; padding: 8px 4px; border: 1px solid var(--line); border-radius: 10px;
+  font-size: 15px; cursor: pointer; color: var(--ink);
+}
+.scelta-font input:checked + span { border: 2px solid var(--accent); background: var(--accent-bg); }
+.scelta-font input:focus-visible + span, .scelta-colore input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: 2px; }
+.scelte-colore { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; }
+.scelta-colore span {
+  display: block; aspect-ratio: 1; border-radius: 50%; cursor: pointer;
+  border: 1px solid var(--line); box-shadow: inset 0 0 0 1px rgba(0,0,0,.15);
+}
+.scelta-colore input:checked + span { outline: 3px solid var(--accent); outline-offset: 2px; }
+.modal { max-height: 92vh; overflow-y: auto; }
 .card-socio .riga { display: flex; justify-content: space-between; font-size: 13px; color: var(--muted); }
 .card-socio .riga b { color: var(--ink); font-weight: 600; }
 
 .indietro { display: inline-block; margin-bottom: 12px; font-size: 14px; color: var(--muted); text-decoration: none; }
 .scheda { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px; }
-.testata { display: flex; gap: 16px; align-items: flex-start; margin-bottom: 12px; }
+.testata { display: flex; flex-wrap: wrap; gap: 16px; align-items: center; margin-bottom: 12px; }
 .testata .dati p { margin: 4px 0 0; }
+.foto-wrap { display: flex; align-items: center; gap: 12px; flex: none; }
 .bio { white-space: pre-line; }
 .scheda > .btn { margin-bottom: 16px; }
 .scheda .metriche .metrica { background: var(--bg); border: none; }

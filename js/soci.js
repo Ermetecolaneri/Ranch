@@ -7,18 +7,15 @@ window.Soci = (function () {
     RanchAPI.getSoci().then(function (d) {
       var mioId = ctx.me && ctx.me.id;
       view.innerHTML =
-        '<div class="metriche">' +
-          '<div class="metrica"><span>Soci</span><strong>' + d.totali.soci + '</strong></div>' +
-          '<div class="metrica"><span>Credito disponibile</span><strong>' + UI.euro(d.totali.credito) + '</strong></div>' +
+        '<div class="metriche una">' +
+          '<div class="metrica"><span>Fondocassa</span><strong>' + UI.euro(d.totali.credito) + '</strong></div>' +
         '</div>' +
         '<div class="griglia-soci">' +
           d.soci.map(function (s) {
             return '<a class="card-socio' + (s.id === mioId ? ' io' : '') + '" href="#/soci/' + esc(s.id) + '">' +
-              UI.avatar(s, 48) +
+              '<span class="testa">' + UI.avatar(s, 52) + UI.numero(s, 44) + '</span>' +
               '<span class="nome">' + esc(s.nome) + (s.id === mioId ? ' <em>(tu)</em>' : '') + '</span>' +
-              (s.numeroGara ? '<span class="numero">#' + esc(s.numeroGara) + '</span>' : '<span class="numero vuoto">senza numero</span>') +
               '<span class="riga"><span>Credito</span><b>' + UI.euro(s.credito) + '</b></span>' +
-              '<span class="riga"><span>Investito</span><b>' + UI.euro(s.investito) + '</b></span>' +
             '</a>';
           }).join('') +
         '</div>';
@@ -34,11 +31,10 @@ window.Soci = (function () {
         '<a class="indietro" href="#/soci">← Tutti i soci</a>' +
         '<section class="scheda">' +
           '<div class="testata">' +
-            '<div class="foto-wrap">' + UI.avatar(s, 88) + '</div>' +
+            '<div class="foto-wrap">' + UI.avatar(s, 88) + UI.numero(s, 64) + '</div>' +
             '<div class="dati">' +
               '<h1>' + esc(s.nome) + '</h1>' +
-              '<p class="muted">' + (s.numeroGara ? 'Numero di gara <b>#' + esc(s.numeroGara) + '</b> · ' : '') +
-                (s.dataIngresso ? 'Socio da ' + esc(UI.meseAnno(s.dataIngresso)) : '') + '</p>' +
+              (s.dataIngresso ? '<p class="muted">Socio da ' + esc(UI.meseAnno(s.dataIngresso)) + '</p>' : '') +
               (s.bio ? '<p class="bio">' + esc(s.bio) + '</p>' : '') +
             '</div>' +
           '</div>' +
@@ -80,8 +76,25 @@ window.Soci = (function () {
         '<h2>Modifica profilo</h2>' +
         '<div class="foto-riga"><span id="anteprima">' + UI.avatar(s, 72) + '</span>' +
           '<label class="btn">Cambia foto<input type="file" accept="image/*" hidden></label></div>' +
-        '<label class="campo"><span>Numero di gara</span>' +
-          '<input name="numeroGara" type="number" inputmode="numeric" min="1" max="999" placeholder="23" value="' + esc(s.numeroGara || '') + '"></label>' +
+        '<fieldset class="numero-editor">' +
+          '<legend>Numero di gara</legend>' +
+          '<div class="numero-riga">' +
+            '<input name="numeroGara" type="number" inputmode="numeric" min="1" max="999" placeholder="23" value="' + esc(s.numeroGara || '') + '" aria-label="Numero di gara">' +
+            '<span class="numero-anteprima" id="anteprima-num"></span>' +
+          '</div>' +
+          '<p class="sotto">Stile</p>' +
+          '<div class="scelte-font">' + Object.keys(UI.FONT_NUMERO).map(function (f) {
+            return '<label class="scelta-font"><input type="radio" name="numeroFont" value="' + f + '"' +
+              ((s.numeroFont || 'corsa') === f ? ' checked' : '') + '>' +
+              '<span class="nf-' + f + '">' + UI.FONT_NUMERO[f].nome + '</span></label>';
+          }).join('') + '</div>' +
+          '<p class="sotto">Colore</p>' +
+          '<div class="scelte-colore">' + Object.keys(UI.COLORI_NUMERO).map(function (c) {
+            return '<label class="scelta-colore" title="' + c + '"><input type="radio" name="numeroColore" value="' + c + '"' +
+              ((s.numeroColore || 'rosso') === c ? ' checked' : '') + ' aria-label="' + c + '">' +
+              '<span style="background:' + UI.COLORI_NUMERO[c] + '"></span></label>';
+          }).join('') + '</div>' +
+        '</fieldset>' +
         '<label class="campo"><span>Bio <em class="muted" id="cont"></em></span>' +
           '<textarea name="bio" rows="3" maxlength="200" placeholder="Curva La Parente in terza piena.">' + esc(s.bio) + '</textarea></label>' +
         '<p class="errore" id="err" hidden></p>' +
@@ -95,7 +108,16 @@ window.Soci = (function () {
     var bio = form.bio, cont = wrap.querySelector('#cont');
     function conta() { cont.textContent = bio.value.length + '/200'; }
     bio.addEventListener('input', function () { conta(); err.hidden = true; });
-    form.numeroGara.addEventListener('input', function () { err.hidden = true; });
+    function valoreRadio(nome) { var r = form.querySelector('input[name=' + nome + ']:checked'); return r ? r.value : ''; }
+    function anteprimaNumero() {
+      var n = form.numeroGara.value.trim();
+      wrap.querySelector('#anteprima-num').innerHTML = n
+        ? UI.numero({ numeroGara: n, numeroFont: valoreRadio('numeroFont'), numeroColore: valoreRadio('numeroColore') }, 56)
+        : '<span class="muted small">Scrivi un numero per vedere l\'anteprima</span>';
+    }
+    form.numeroGara.addEventListener('input', function () { err.hidden = true; anteprimaNumero(); });
+    form.addEventListener('change', function (e) { if (/^numero(Font|Colore)$/.test(e.target.name)) anteprimaNumero(); });
+    anteprimaNumero();
     conta();
 
     function mostraErrore(msg) { err.textContent = msg; err.hidden = false; }
@@ -131,7 +153,8 @@ window.Soci = (function () {
       var btn = form.querySelector('button[type=submit]');
       btn.disabled = true;
       btn.textContent = 'Salvataggio…';
-      RanchAPI.aggiornaProfilo(ctx.k, { numeroGara: num, bio: bio.value.trim() }).then(function () {
+      RanchAPI.aggiornaProfilo(ctx.k, { numeroGara: num, bio: bio.value.trim(),
+        numeroFont: valoreRadio('numeroFont'), numeroColore: valoreRadio('numeroColore') }).then(function () {
         cambiato = true;
         UI.toast('Profilo salvato');
         chiudi();

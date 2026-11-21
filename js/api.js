@@ -61,6 +61,7 @@
   function pubblico(socio, s) {
     var x = s[socio.id] || { credito: 0, investito: 0 };
     return { id: socio.id, nome: socio.nome, numeroGara: socio.numeroGara || null, bio: socio.bio || '',
+             numeroFont: socio.numeroFont || 'corsa', numeroColore: socio.numeroColore || 'rosso',
              dataIngresso: socio.dataIngresso || '', foto: socio.foto || '',
              credito: Math.round(x.credito * 100) / 100, investito: Math.round(x.investito * 100) / 100 };
   }
@@ -109,6 +110,8 @@
       if (v.errore) return rifiuto(v.errore);
       socio.numeroGara = v.numeroGara;
       socio.bio = v.bio;
+      socio.numeroFont = v.numeroFont;
+      socio.numeroColore = v.numeroColore;
       return attesa(pubblico(socio, saldi(D.movimenti)));
     },
     caricaFoto: function (k, dataUrl) {
@@ -132,7 +135,11 @@
       var preso = soci.filter(function (s) { return s.attivo && s.id !== idSocio && Number(s.numeroGara) === num; })[0];
       if (preso) return { errore: 'Il numero ' + num + ' è già di ' + preso.nome + '.' };
     }
-    return { numeroGara: num, bio: bio };
+    var font = dati.numeroFont || 'corsa', colore = dati.numeroColore || 'rosso';
+    if (['corsa', 'squadrato', 'stencil'].indexOf(font) < 0) return { errore: 'Stile del numero non valido.' };
+    if (['rosso','arancione','giallo','oro','verde','acqua','azzurro','blu','viola','rosa','nero','bianco'].indexOf(colore) < 0)
+      return { errore: 'Colore del numero non valido.' };
+    return { numeroGara: num, bio: bio, numeroFont: font, numeroColore: colore };
   }
 
   var reale = {
@@ -146,7 +153,8 @@
     whoami: function (k) { return rpc('whoami', { p_k: k }).then(conFoto); },
     aggiornaProfilo: function (k, dati) {
       var n = dati.numeroGara === '' || dati.numeroGara == null ? null : Number(dati.numeroGara);
-      return rpc('aggiorna_profilo', { p_k: k, p_numero_gara: n, p_bio: dati.bio || '' }).then(conFoto);
+      return rpc('aggiorna_profilo', { p_k: k, p_numero_gara: n, p_bio: dati.bio || '',
+        p_numero_font: dati.numeroFont || 'corsa', p_numero_colore: dati.numeroColore || 'rosso' }).then(conFoto);
     },
     caricaFoto: function (k, dataUrl) { return funzione('carica-foto', { k: k, foto: dataUrl }).then(conFoto); }
   };

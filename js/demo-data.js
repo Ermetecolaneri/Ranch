@@ -1,17 +1,17 @@
 // Dati di esempio per la modalità demo. Nomi e cifre inventati.
 window.RANCH_DEMO = {
   soci: [
-    { id: 's01', nome: 'Andrea Di Paolo', numeroGara: 7,  bio: 'Curva La Parente in terza piena.', dataIngresso: '2025-03-01', foto: '', attivo: true, codice: 'demo-andrea' },
-    { id: 's02', nome: 'Ermete',          numeroGara: 1,  bio: 'Fondatore e tesoriere del ranch.', dataIngresso: '2025-01-15', foto: '', attivo: true, codice: 'demo-ermete' },
-    { id: 's03', nome: 'Francesco Rossi', numeroGara: 23, bio: '', dataIngresso: '2025-04-10', foto: '', attivo: true, codice: 'demo-francesco' },
-    { id: 's04', nome: 'Giulia Colanzi',  numeroGara: 44, bio: 'Più veloce in salita che in discesa.', dataIngresso: '2025-02-20', foto: '', attivo: true, codice: 'demo-giulia' },
-    { id: 's05', nome: 'Luca Bianchi',    numeroGara: 12, bio: 'Meccanico ufficiale.', dataIngresso: '2025-01-15', foto: '', attivo: true, codice: 'demo-luca' },
-    { id: 's06', nome: 'Marco Ricci',     numeroGara: 99, bio: '', dataIngresso: '2025-05-02', foto: '', attivo: true, codice: 'demo-marco' },
-    { id: 's07', nome: 'Matteo Ferri',    numeroGara: 5,  bio: 'Telemetria o non è successo.', dataIngresso: '2025-06-01', foto: '', attivo: true, codice: 'demo-matteo' },
-    { id: 's08', nome: 'Paolo Santoro',   numeroGara: 31, bio: '', dataIngresso: '2025-06-01', foto: '', attivo: true, codice: 'demo-paolo' },
-    { id: 's09', nome: 'Sara Di Biase',   numeroGara: 8,  bio: 'Fotografa del gruppo.', dataIngresso: '2025-07-12', foto: '', attivo: true, codice: 'demo-sara' },
-    { id: 's10', nome: 'Simone Verna',    numeroGara: 66, bio: '', dataIngresso: '2025-09-01', foto: '', attivo: true, codice: 'demo-simone' },
-    { id: 's11', nome: 'Vecchio Socio',   numeroGara: 0,  bio: '', dataIngresso: '2025-01-15', foto: '', attivo: false, codice: 'demo-vecchio' }
+    { id: 's01', nome: 'Andrea Di Paolo', numeroGara: 7, numeroFont: 'corsa', numeroColore: 'rosso',  bio: 'Curva La Parente in terza piena.', dataIngresso: '2025-03-01', foto: '', attivo: true, codice: 'demo-andrea' },
+    { id: 's02', nome: 'Ermete',          numeroGara: 1, numeroFont: 'stencil', numeroColore: 'nero',  bio: 'Fondatore e tesoriere del ranch.', dataIngresso: '2025-01-15', foto: '', attivo: true, codice: 'demo-ermete' },
+    { id: 's03', nome: 'Francesco Rossi', numeroGara: 23, numeroFont: 'squadrato', numeroColore: 'azzurro', bio: '', dataIngresso: '2025-04-10', foto: '', attivo: true, codice: 'demo-francesco' },
+    { id: 's04', nome: 'Giulia Colanzi',  numeroGara: 44, numeroFont: 'corsa', numeroColore: 'giallo', bio: 'Più veloce in salita che in discesa.', dataIngresso: '2025-02-20', foto: '', attivo: true, codice: 'demo-giulia' },
+    { id: 's05', nome: 'Luca Bianchi',    numeroGara: 12, numeroFont: 'stencil', numeroColore: 'verde', bio: 'Meccanico ufficiale.', dataIngresso: '2025-01-15', foto: '', attivo: true, codice: 'demo-luca' },
+    { id: 's06', nome: 'Marco Ricci',     numeroGara: 99, numeroFont: 'squadrato', numeroColore: 'arancione', bio: '', dataIngresso: '2025-05-02', foto: '', attivo: true, codice: 'demo-marco' },
+    { id: 's07', nome: 'Matteo Ferri',    numeroGara: 5, numeroFont: 'corsa', numeroColore: 'blu',  bio: 'Telemetria o non è successo.', dataIngresso: '2025-06-01', foto: '', attivo: true, codice: 'demo-matteo' },
+    { id: 's08', nome: 'Paolo Santoro',   numeroGara: 31, numeroFont: 'stencil', numeroColore: 'viola', bio: '', dataIngresso: '2025-06-01', foto: '', attivo: true, codice: 'demo-paolo' },
+    { id: 's09', nome: 'Sara Di Biase',   numeroGara: 8, numeroFont: 'squadrato', numeroColore: 'rosa',  bio: 'Fotografa del gruppo.', dataIngresso: '2025-07-12', foto: '', attivo: true, codice: 'demo-sara' },
+    { id: 's10', nome: 'Simone Verna',    numeroGara: 66, numeroFont: 'corsa', numeroColore: 'bianco', bio: '', dataIngresso: '2025-09-01', foto: '', attivo: true, codice: 'demo-simone' },
+    { id: 's11', nome: 'Vecchio Socio',   numeroGara: 0, numeroFont: 'corsa', numeroColore: 'rosso',  bio: '', dataIngresso: '2025-01-15', foto: '', attivo: false, codice: 'demo-vecchio' }
   ],
   progetti: [
     { id: 'p01', nome: 'Tribuna' },
