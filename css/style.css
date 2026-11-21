@@ -1,3 +1,8 @@
+/* Font del numero di gara, ospitati nel sito (licenza SIL OFL, vedi cartella fonts) */
+@font-face { font-family: 'Racing Sans One'; src: url('../fonts/racing-sans-one.woff2') format('woff2'); font-display: swap; }
+@font-face { font-family: 'Bungee'; src: url('../fonts/bungee.woff2') format('woff2'); font-display: swap; }
+@font-face { font-family: 'Black Ops One'; src: url('../fonts/black-ops-one.woff2') format('woff2'); font-display: swap; }
+
 :root {
   --bg: #f6f3ec;
   --card: #ffffff;
