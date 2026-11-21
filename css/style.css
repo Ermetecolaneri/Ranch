@@ -193,10 +193,9 @@ h2 { font-size: 16px; margin: 24px 0 8px; font-weight: 600; }
   border: 1px solid var(--line); background: var(--bg); color: var(--ink);
 }
 .crop-area { display: flex; justify-content: center; margin: 12px 0; }
-.crop-area canvas {
-  width: min(280px, 100%); aspect-ratio: 1; border-radius: 50%;
-  touch-action: none; cursor: grab; background: var(--bg);
-}
+.crop-area canvas { width: min(320px, 100%); height: auto; touch-action: none; cursor: grab; background: var(--bg); }
+.crop-area canvas.tondo { border-radius: 50%; }
+.crop-area canvas.rett { border-radius: 8px; }
 .zoom { display: flex; align-items: center; gap: 12px; font-size: 14px; }
 .zoom input { flex: 1; }
 
@@ -213,3 +212,88 @@ h2 { font-size: 16px; margin: 24px 0 8px; font-weight: 600; }
   padding: 8px 12px calc(8px + env(safe-area-inset-bottom));
 }
 body:has(.demo-banner:not([hidden])) .view { padding-bottom: 56px; }
+
+/* ---------------- Progetti ---------------- */
+.kpi-centro { display: flex; justify-content: center; gap: 12px; margin: 4px 0 16px; flex-wrap: wrap; }
+.kpi {
+  background: var(--card); border: 1px solid var(--line); border-radius: var(--radius);
+  padding: 12px 20px; text-align: center; min-width: 140px;
+}
+.kpi span { display: block; font-size: 13px; color: var(--muted); }
+.kpi strong { font-size: 22px; font-weight: 600; white-space: nowrap; }
+.kpi small { font-size: 15px; font-weight: 400; color: var(--muted); }
+.azioni-sezione { display: flex; justify-content: center; margin-bottom: 16px; }
+
+.griglia-progetti { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
+@media (min-width: 760px) { .griglia-progetti { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.card-progetto {
+  display: block; text-decoration: none; overflow: hidden;
+  background: var(--card); border: 1px solid var(--line); border-radius: var(--radius);
+}
+.card-progetto:hover { border-color: var(--muted); }
+.foto-box { position: relative; }
+.foto-progetto { display: block; width: 100%; aspect-ratio: 16 / 9; object-fit: cover; background: var(--line); }
+.foto-vuota { display: flex; align-items: center; justify-content: center; background: var(--accent-bg); }
+.foto-vuota span { font-size: 64px; font-weight: 700; color: var(--accent); opacity: .5; }
+.foto-box .badge { position: absolute; top: 10px; left: 10px; }
+.foto-box.modulo { border-radius: 10px; overflow: hidden; margin-bottom: 8px; }
+.card-progetto .corpo, .dettaglio-progetto .corpo { padding: 14px 16px 16px; }
+.card-progetto h2 { margin: 0 0 4px; font-size: 18px; }
+.card-progetto .descr {
+  font-size: 13px; color: var(--muted); margin: 0 0 10px;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+.soldi { margin: 6px 0 2px; font-size: 15px; }
+.soldi.grande { font-size: 18px; }
+.meta { display: flex; justify-content: space-between; gap: 8px; font-size: 13px; color: var(--muted); margin: 0; flex-wrap: wrap; }
+
+.barra { height: 8px; border-radius: 99px; background: var(--line); overflow: hidden; }
+.barra span { display: block; height: 100%; border-radius: 99px; background: var(--accent); }
+.barra.completa span { background: #2b9348; }
+
+.badge { display: inline-block; font-size: 12px; font-weight: 600; padding: 3px 10px; border-radius: 99px; }
+.st-raccolta { background: #e6efdf; color: #2f5a22; }
+.st-sviluppo { background: #faeed7; color: #7a4a0a; }
+.st-chiuso { background: #2b9348; color: #fff; }
+.st-scaduto { background: #e3ded2; color: #555; }
+
+.dettaglio-progetto { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
+.dettaglio-progetto.chiuso { border: 2px solid #2b9348; }
+.banner-chiuso { background: #2b9348; color: #fff; font-weight: 600; text-align: center; padding: 10px 16px; }
+.dettaglio-progetto h1 { margin: 0 0 8px; }
+.proposto { display: inline-flex; align-items: center; gap: 8px; text-decoration: none; font-size: 14px; color: var(--muted); margin-bottom: 12px; }
+.proposto b { color: var(--ink); }
+.descr-lunga { white-space: pre-line; margin: 0 0 16px; }
+.dati-progetto { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin: 14px 0 16px; }
+@media (min-width: 600px) { .dati-progetto { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+.dati-progetto div { background: var(--bg); border-radius: 10px; padding: 8px 10px; }
+.dati-progetto span { display: block; font-size: 12px; color: var(--muted); }
+.dati-progetto b { font-size: 16px; }
+
+.box-acquisto, .box-admin { border: 1px solid var(--line); border-radius: var(--radius); padding: 14px; margin: 0 0 16px; }
+.box-acquisto { background: var(--accent-bg); border-color: transparent; }
+.box-acquisto h2, .box-admin h2 { margin: 0 0 4px; }
+.box-acquisto p { margin: 0; }
+.stepper { display: flex; align-items: center; gap: 10px; margin: 12px 0 4px; }
+.stepper .btn { width: 44px; padding: 0; font-size: 20px; }
+.stepper output { font-size: 22px; font-weight: 700; min-width: 32px; text-align: center; }
+.btn.largo { width: 100%; margin-top: 12px; }
+.segmenti { display: flex; gap: 6px; flex-wrap: wrap; margin: 10px 0 12px; }
+.segmenti .btn.attivo { background: var(--accent); color: #fff; border-color: var(--accent); font-weight: 600; }
+@media (prefers-color-scheme: dark) { .segmenti .btn.attivo { color: #14160f; } }
+.btn.pericolo { color: var(--err); border-color: var(--err); background: transparent; }
+.btn.pericolo-pieno { background: var(--err); border-color: var(--err); color: #fff; font-weight: 600; }
+#modifica-p { margin-bottom: 16px; }
+
+.finanziatori { list-style: none; margin: 0; padding: 0; }
+.finanziatori li { display: flex; gap: 12px; padding: 12px 0; border-top: 1px solid var(--line); }
+.finanziatori .cosa p { margin: 0; }
+.finanziatori .cosa a { text-decoration: none; }
+.finanziatori .messaggio { margin-top: 4px !important; font-style: italic; }
+
+.modal.largo { max-width: 520px; }
+.due { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.totale-calc { margin: 10px 0 0; font-size: 15px; }
+.vuoto { text-align: center; padding: 32px 0; }
+
+.fuochi { position: fixed; inset: 0; width: 100vw; height: 100vh; pointer-events: none; z-index: 70; }

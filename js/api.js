@@ -35,9 +35,9 @@
     }).then(leggi);
   }
   // foto_path nel bucket pubblico "avatar" -> URL completo
-  function urlFoto(p) {
+  function urlFoto(p, bucket) {
     if (!p || /^(data:|https?:)/.test(p)) return p || '';
-    return URL_DB + '/storage/v1/object/public/avatar/' + p.split('/').map(encodeURIComponent).join('/');
+    return URL_DB + '/storage/v1/object/public/' + (bucket || 'avatar') + '/' + p.split('/').map(encodeURIComponent).join('/');
   }
   function conFoto(x) { if (x) x.foto = urlFoto(x.foto); return x; }
 
@@ -90,9 +90,9 @@
       });
       var progetti = D.progetti
         .filter(function (p) { return perProgetto[p.id] && perProgetto[p.id].quote > 0; })
-        .map(function (p) { return { id: p.id, nome: p.nome, quote: perProgetto[p.id].quote, importo: perProgetto[p.id].importo }; });
+        .map(function (p) { return { id: p.id, nome: p.titolo, quote: perProgetto[p.id].quote, importo: perProgetto[p.id].importo }; });
       var nomiProgetti = {};
-      D.progetti.forEach(function (p) { nomiProgetti[p.id] = p.nome; });
+      D.progetti.forEach(function (p) { nomiProgetti[p.id] = p.titolo; });
       var movimenti = miei.slice().sort(function (a, b) { return a.data < b.data ? 1 : -1; }).slice(0, 10)
         .map(function (m) { return { data: m.data, tipo: m.tipo, importo: m.importo, causale: m.causale,
                                      progetto: nomiProgetti[m.progetto] || '' }; });
@@ -101,7 +101,8 @@
     whoami: function (k) {
       var socio = perCodice(k);
       if (!socio) return attesa(null);
-      return attesa({ id: socio.id, nome: socio.nome, foto: socio.foto || '' });
+      return attesa({ id: socio.id, nome: socio.nome, foto: socio.foto || '', admin: !!socio.admin,
+                      credito: pubblico(socio, saldi(D.movimenti)).credito });
     },
     aggiornaProfilo: function (k, dati) {
       var socio = perCodice(k);
@@ -121,8 +122,132 @@
       if (dataUrl.length > 1400000) return rifiuto('Immagine troppo grande.');
       socio.foto = dataUrl; // in demo la foto resta solo in memoria
       return attesa({ foto: dataUrl });
+    },
+
+    // ----- progetti (demo) -----
+    getProgetti: function () {
+      var lista = D.progetti.filter(function (p) { return p.stato !== 'eliminato'; }).map(progettoPubblico);
+      var ordine = { raccolta: 0, sviluppo: 1, chiuso: 2 };
+      lista.sort(function (a, b) { return (ordine[a.stato] - ordine[b.stato]) || (a.scadenza < b.scadenza ? -1 : 1); });
+      return attesa({ progetti: lista, kpi: {
+        progetti: lista.length,
+        raccolto: lista.reduce(function (t, p) { return t + p.raccolto; }, 0),
+        totale: lista.reduce(function (t, p) { return t + p.totale; }, 0) } });
+    },
+    getProgetto: function (id) {
+      var p = trovaProgetto(id);
+      if (!p) return rifiuto('Progetto non trovato.');
+      var fin = D.movimenti.filter(function (m) { return m.progetto === id; })
+        .sort(function (a, b) { return a.data < b.data ? 1 : -1; })
+        .map(function (m) { return { socio: miniSocio(m.socio), data: m.data, tipo: m.tipo, quote: m.quote,
+                                     importo: -m.importo, messaggio: m.messaggio || '' }; });
+      return attesa({ progetto: progettoPubblico(p), finanziatori: fin });
+    },
+    creaProgetto: function (k, d) {
+      var s = perCodice(k);
+      if (!s) return rifiuto('Link personale non valido.');
+      var e = validaProgetto(d) || (d.scadenza < oggi() ? 'La scadenza non può essere nel passato.' : '');
+      if (e) return rifiuto(e);
+      var p = { id: 'p' + Date.now(), titolo: d.titolo.trim(), descrizione: (d.descrizione || '').trim(),
+                quoteTotali: Number(d.quoteTotali), costoQuota: Number(d.costoQuota), scadenza: d.scadenza,
+                stato: 'raccolta', creatoDa: s.id, foto: '', creatoIl: new Date().toISOString() };
+      D.progetti.push(p);
+      return attesa(progettoPubblico(p));
+    },
+    modificaProgetto: function (k, id, d) {
+      var s = perCodice(k), p = trovaProgetto(id);
+      if (!s) return rifiuto('Link personale non valido.');
+      if (!p) return rifiuto('Progetto non trovato.');
+      if (p.creatoDa !== s.id && !s.admin) return rifiuto('Solo chi ha proposto il progetto può modificarlo.');
+      var e = validaProgetto(d);
+      if (e) return rifiuto(e);
+      var vend = quoteVendute(id), haMov = D.movimenti.some(function (m) { return m.progetto === id; });
+      if (haMov && Number(d.costoQuota) !== p.costoQuota) return rifiuto('Il costo quota non si può cambiare dopo il primo acquisto.');
+      if (haMov && Number(d.quoteTotali) < vend) return rifiuto('Sono già state vendute ' + vend + ' quote: le quote totali non possono essere meno.');
+      Object.assign(p, { titolo: d.titolo.trim(), descrizione: (d.descrizione || '').trim(), quoteTotali: Number(d.quoteTotali),
+                         costoQuota: Number(d.costoQuota), scadenza: d.scadenza });
+      return attesa(progettoPubblico(p));
+    },
+    acquistaQuote: function (k, id, quote, messaggio) {
+      var s = perCodice(k), p = trovaProgetto(id);
+      if (!s) return rifiuto('Link personale non valido.');
+      if (!p) return rifiuto('Progetto non trovato.');
+      if (p.stato !== 'raccolta') return rifiuto('La raccolta per questo progetto è chiusa.');
+      if (p.scadenza < oggi()) return rifiuto('Il progetto è scaduto.');
+      quote = Number(quote);
+      if (!(quote >= 1)) return rifiuto('Scegli almeno una quota.');
+      var resto = p.quoteTotali - quoteVendute(id);
+      if (quote > resto) return rifiuto('Restano solo ' + resto + ' quote.');
+      var costo = quote * p.costoQuota, credito = saldi(D.movimenti)[s.id] ? saldi(D.movimenti)[s.id].credito : 0;
+      if (costo > credito) return rifiuto('Credito insufficiente: hai ' + UI.euro(credito) + ', servono ' + UI.euro(costo) + '.');
+      D.movimenti.push({ id: 'm' + Date.now(), data: new Date().toISOString(), socio: s.id, tipo: 'acquisto', importo: -costo,
+                         progetto: id, quote: quote, causale: quote + (quote === 1 ? ' quota' : ' quote'), messaggio: (messaggio || '').trim() });
+      return attesa({ progetto: progettoPubblico(p), credito: credito - costo });
+    },
+    impostaStato: function (k, id, stato) {
+      var s = perCodice(k), p = trovaProgetto(id);
+      if (!s || !s.admin) return rifiuto('Solo l\'admin può cambiare lo stato.');
+      if (!p) return rifiuto('Progetto non trovato.');
+      p.stato = stato;
+      return attesa(progettoPubblico(p));
+    },
+    eliminaProgetto: function (k, id) {
+      var s = perCodice(k), p = trovaProgetto(id);
+      if (!s || !s.admin) return rifiuto('Solo l\'admin può eliminare un progetto.');
+      if (!p) return rifiuto('Progetto non trovato.');
+      var per = {}, n = 0, tot = 0;
+      D.movimenti.filter(function (m) { return m.progetto === id; }).forEach(function (m) {
+        var x = per[m.socio] || (per[m.socio] = { q: 0, i: 0 }); x.q += m.quote; x.i -= m.importo;
+      });
+      Object.keys(per).forEach(function (sid) {
+        if (per[sid].i <= 0) return;
+        D.movimenti.push({ id: 'm' + Date.now() + sid, data: new Date().toISOString(), socio: sid, tipo: 'rimborso',
+                           importo: per[sid].i, progetto: id, quote: -per[sid].q, causale: 'Rimborso: progetto eliminato' });
+        n++; tot += per[sid].i;
+      });
+      p.stato = 'eliminato';
+      return attesa({ rimborsati: n, importo: tot });
+    },
+    caricaFotoProgetto: function (k, id, dataUrl) {
+      var s = perCodice(k), p = trovaProgetto(id);
+      if (!s) return rifiuto('Link personale non valido.');
+      if (!p) return rifiuto('Progetto non trovato.');
+      if (p.creatoDa !== s.id && !s.admin) return rifiuto('Solo chi ha proposto il progetto può cambiarne la foto.');
+      p.foto = dataUrl;
+      return attesa({ foto: dataUrl });
     }
   };
+
+  function oggi() { var d = new Date(); return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10); }
+  function trovaProgetto(id) { return D.progetti.filter(function (p) { return p.id === id && p.stato !== 'eliminato'; })[0]; }
+  function quoteVendute(id) { return D.movimenti.filter(function (m) { return m.progetto === id; }).reduce(function (t, m) { return t + m.quote; }, 0); }
+  function miniSocio(id) {
+    var s = D.soci.filter(function (x) { return x.id === id; })[0] || { id: id, nome: '?' };
+    return { id: s.id, nome: s.nome, foto: s.foto || '', numeroGara: s.numeroGara || null, numeroFont: s.numeroFont, numeroColore: s.numeroColore };
+  }
+  function progettoPubblico(p) {
+    var mov = D.movimenti.filter(function (m) { return m.progetto === p.id; });
+    var raccolto = mov.reduce(function (t, m) { return t - m.importo; }, 0);
+    var perSocio = {};
+    mov.forEach(function (m) { perSocio[m.socio] = (perSocio[m.socio] || 0) + m.quote; });
+    return { id: p.id, titolo: p.titolo, descrizione: p.descrizione, foto: p.foto || '', quoteTotali: p.quoteTotali,
+             costoQuota: p.costoQuota, totale: p.quoteTotali * p.costoQuota, raccolto: raccolto,
+             quoteVendute: quoteVendute(p.id),
+             sostenitori: Object.keys(perSocio).filter(function (k) { return perSocio[k] > 0; }).length,
+             scadenza: p.scadenza, scaduto: p.scadenza < oggi(), stato: p.stato, creatoIl: p.creatoIl,
+             creatoDa: miniSocio(p.creatoDa) };
+  }
+  function validaProgetto(d) {
+    var t = String(d.titolo || '').trim();
+    if (!t) return 'Scrivi un titolo.';
+    if (t.length > 80) return 'Il titolo può avere al massimo 80 caratteri.';
+    if (String(d.descrizione || '').length > 1000) return 'La descrizione può avere al massimo 1000 caratteri.';
+    var q = Number(d.quoteTotali), c = Number(d.costoQuota);
+    if (!Number.isInteger(q) || q < 1 || q > 10000) return 'Le quote totali vanno da 1 a 10000.';
+    if (!(c > 0) || c > 10000 || Math.round(c * 100) !== c * 100) return 'Il costo quota deve essere tra 0,01 e 10000 euro.';
+    if (!d.scadenza) return 'Scegli una data di scadenza.';
+    return '';
+  }
 
   // Regole condivise con il backend (vedi apps-script/Code.gs)
   function validaProfilo(dati, idSocio, soci) {
@@ -156,8 +281,50 @@
       return rpc('aggiorna_profilo', { p_k: k, p_numero_gara: n, p_bio: dati.bio || '',
         p_numero_font: dati.numeroFont || 'corsa', p_numero_colore: dati.numeroColore || 'rosso' }).then(conFoto);
     },
-    caricaFoto: function (k, dataUrl) { return funzione('carica-foto', { k: k, foto: dataUrl }).then(conFoto); }
+    caricaFoto: function (k, dataUrl) { return funzione('carica-foto', { k: k, foto: dataUrl }).then(conFoto); },
+
+    // ----- progetti -----
+    getProgetti: function () {
+      return rpc('get_progetti').then(function (d) { d.progetti.forEach(conFotoProgetto); return d; });
+    },
+    getProgetto: function (id) {
+      if (!/^[0-9a-f-]{36}$/i.test(id)) return Promise.reject(errore('Progetto non trovato.'));
+      return rpc('get_progetto', { p_id: id }).then(function (d) {
+        conFotoProgetto(d.progetto);
+        d.finanziatori.forEach(function (f) { conFoto(f.socio); });
+        return d;
+      });
+    },
+    creaProgetto: function (k, d) {
+      return rpc('crea_progetto', argsProgetto(k, d)).then(conFotoProgetto);
+    },
+    modificaProgetto: function (k, id, d) {
+      var a = argsProgetto(k, d); a.p_id = id;
+      return rpc('modifica_progetto', a).then(conFotoProgetto);
+    },
+    acquistaQuote: function (k, id, quote, messaggio) {
+      return rpc('acquista_quote', { p_k: k, p_id: id, p_quote: Number(quote), p_messaggio: messaggio || '' })
+        .then(function (d) { conFotoProgetto(d.progetto); return d; });
+    },
+    impostaStato: function (k, id, stato) {
+      return rpc('imposta_stato_progetto', { p_k: k, p_id: id, p_stato: stato }).then(conFotoProgetto);
+    },
+    eliminaProgetto: function (k, id) { return rpc('elimina_progetto', { p_k: k, p_id: id }); },
+    caricaFotoProgetto: function (k, id, dataUrl) {
+      return funzione('carica-foto', { k: k, foto: dataUrl, progetto: id })
+        .then(function (r) { r.foto = urlFoto(r.foto, 'progetti'); return r; });
+    }
   };
+  function argsProgetto(k, d) {
+    return { p_k: k, p_titolo: d.titolo, p_descrizione: d.descrizione || '', p_quote_totali: Number(d.quoteTotali),
+             p_costo_quota: Number(d.costoQuota), p_scadenza: d.scadenza };
+  }
+  function conFotoProgetto(p) {
+    if (!p) return p;
+    p.foto = urlFoto(p.foto, 'progetti');
+    conFoto(p.creatoDa);
+    return p;
+  }
 
   window.RanchAPI = Object.assign({ demo: DEMO }, DEMO ? demo : reale);
 })();

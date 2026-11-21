@@ -18,7 +18,13 @@
     history.replaceState(null, '', location.pathname + (q ? '?' + q : '') + location.hash);
   }
 
-  var ctx = { k: k || null, me: null, aggiornaMe: disegnaMe };
+  var ctx = { k: k || null, me: null, aggiornaMe: disegnaMe, ricaricaMe: ricaricaMe };
+
+  // rilegge chi sono (credito aggiornato dopo un acquisto)
+  function ricaricaMe() {
+    if (!ctx.k) return Promise.resolve();
+    return RanchAPI.whoami(ctx.k).then(function (me) { ctx.me = me; disegnaMe(); }).catch(function () {});
+  }
 
   function disegnaMe() {
     if (!ctx.me) { meBox.hidden = true; return; }
@@ -27,7 +33,7 @@
       '<span>' + UI.esc(ctx.me.nome.split(' ')[0]) + '</span></a>';
   }
 
-  var IN_ARRIVO = { mezzi: 'Mezzi', progetti: 'Progetti', telemetria: 'Telemetria', eventi: 'Eventi', cassa: 'Cassa' };
+  var IN_ARRIVO = { mezzi: 'Mezzi', telemetria: 'Telemetria', eventi: 'Eventi', cassa: 'Cassa' };
 
   function route() {
     var parti = (location.hash.replace(/^#\/?/, '') || 'soci').split('/');
@@ -40,6 +46,9 @@
     if (sez === 'soci') {
       if (parti[1]) Soci.scheda(view, decodeURIComponent(parti[1]), ctx);
       else Soci.lista(view, ctx);
+    } else if (sez === 'progetti') {
+      if (parti[1]) Progetti.scheda(view, decodeURIComponent(parti[1]), ctx);
+      else Progetti.lista(view, ctx);
     } else if (IN_ARRIVO[sez]) {
       view.innerHTML = '<p class="muted pad">La sezione ' + IN_ARRIVO[sez] + ' è in costruzione.</p>';
     } else {

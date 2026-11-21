@@ -2,7 +2,7 @@
 window.RANCH_DEMO = {
   soci: [
     { id: 's01', nome: 'Andrea Di Paolo', numeroGara: 7, numeroFont: 'corsa', numeroColore: 'rosso',  bio: 'Curva La Parente in terza piena.', dataIngresso: '2025-03-01', foto: '', attivo: true, codice: 'demo-andrea' },
-    { id: 's02', nome: 'Ermete',          numeroGara: 1, numeroFont: 'stencil', numeroColore: 'nero',  bio: 'Fondatore e tesoriere del ranch.', dataIngresso: '2025-01-15', foto: '', attivo: true, codice: 'demo-ermete' },
+    { id: 's02', admin: true, nome: 'Ermete',          numeroGara: 1, numeroFont: 'stencil', numeroColore: 'nero',  bio: 'Fondatore e tesoriere del ranch.', dataIngresso: '2025-01-15', foto: '', attivo: true, codice: 'demo-ermete' },
     { id: 's03', nome: 'Francesco Rossi', numeroGara: 23, numeroFont: 'squadrato', numeroColore: 'azzurro', bio: '', dataIngresso: '2025-04-10', foto: '', attivo: true, codice: 'demo-francesco' },
     { id: 's04', nome: 'Giulia Colanzi',  numeroGara: 44, numeroFont: 'corsa', numeroColore: 'giallo', bio: 'Più veloce in salita che in discesa.', dataIngresso: '2025-02-20', foto: '', attivo: true, codice: 'demo-giulia' },
     { id: 's05', nome: 'Luca Bianchi',    numeroGara: 12, numeroFont: 'stencil', numeroColore: 'verde', bio: 'Meccanico ufficiale.', dataIngresso: '2025-01-15', foto: '', attivo: true, codice: 'demo-luca' },
@@ -14,10 +14,14 @@ window.RANCH_DEMO = {
     { id: 's11', nome: 'Vecchio Socio',   numeroGara: 0, numeroFont: 'corsa', numeroColore: 'rosso',  bio: '', dataIngresso: '2025-01-15', foto: '', attivo: false, codice: 'demo-vecchio' }
   ],
   progetti: [
-    { id: 'p01', nome: 'Tribuna' },
-    { id: 'p02', nome: 'Illuminazione pista' },
-    { id: 'p03', nome: 'Box attrezzi' }
+    { id: 'p01', titolo: 'Tribuna in legno', descrizione: 'Una tribuna da 20 posti sul lato della curva La Parente, con tettoia per il sole d\'estate.',
+      quoteTotali: 60, costoQuota: 10, scadenza: '2027-03-31', stato: 'raccolta', creatoDa: 's02', foto: '', creatoIl: '2026-09-01T10:00:00' },
+    { id: 'p02', titolo: 'Illuminazione pista', descrizione: 'Fari LED su pali per girare anche dopo il tramonto.',
+      quoteTotali: 40, costoQuota: 20, scadenza: '2027-01-15', stato: 'sviluppo', creatoDa: 's07', foto: '', creatoIl: '2026-09-05T10:00:00' },
+    { id: 'p03', titolo: 'Box attrezzi', descrizione: 'Container per attrezzi e ricambi, con banco da lavoro.',
+      quoteTotali: 12, costoQuota: 5, scadenza: '2026-11-15', stato: 'chiuso', creatoDa: 's05', foto: '', creatoIl: '2026-08-20T10:00:00' }
   ],
+
   movimenti: (function () {
     var m = [], n = 0;
     function add(data, socio, tipo, importo, progetto, quote, causale) {
