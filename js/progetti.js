@@ -37,6 +37,7 @@ window.Progetti = (function () {
     view.innerHTML = UI.caricamento();
     RanchAPI.getProgetti(ctx.k).then(function (d) {
       view.innerHTML =
+        boxCredito(ctx.me) +
         '<div class="kpi-centro">' +
           '<div class="kpi"><span>Progetti</span><strong>' + d.kpi.progetti + '</strong></div>' +
           '<div class="kpi"><span>Raccolti</span><strong>' + UI.euro(d.kpi.raccolto) + ' <small>/ ' + UI.euro(d.kpi.totale) + '</small></strong></div>' +
@@ -71,6 +72,16 @@ window.Progetti = (function () {
         });
       });
     }).catch(function (e) { view.innerHTML = UI.errore(e); });
+  }
+
+  // ---------- credito del socio, ben visibile ----------
+  function boxCredito(me) {
+    if (!me) return '';
+    var c = Number(me.credito) || 0;
+    return '<div class="box-credito' + (c > 0 ? '' : ' vuoto') + '" role="status">' +
+      '<div class="testo"><span>Il tuo credito da usare</span><strong>' + UI.euro(c) + '</strong></div>' +
+      '<div class="nota">' + (c > 0 ? 'Usalo per comprare quote dei progetti' : 'Nessun credito disponibile al momento') + '</div>' +
+    '</div>';
   }
 
   // ---------- cuori ----------
@@ -112,6 +123,7 @@ window.Progetti = (function () {
 
       view.innerHTML =
         '<a class="indietro" href="#/progetti">← Tutti i progetti</a>' +
+        boxCredito(me) +
         '<article class="dettaglio-progetto' + (p.stato === 'chiuso' ? ' chiuso' : '') + '">' +
           '<div class="foto-box grande">' + foto(p, 'foto-progetto') + badge(p) + '</div>' +
           (p.stato === 'chiuso' ? '<div class="banner-chiuso">Progetto completato. Grazie a tutti i sostenitori!</div>' : '') +

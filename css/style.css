@@ -452,3 +452,14 @@ body:has(.demo-banner:not([hidden])) .view { padding-bottom: 56px; }
 .riga-data .togli { width: 40px; padding: 0; font-size: 20px; }
 .riga-data .voti-n { grid-column: 1 / -1; margin-top: -4px; }
 #blocco-prog[hidden], #blocco-date[hidden] { display: none; }
+
+/* ---------------- Credito del socio ---------------- */
+.box-credito {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+  background: #2b9348; color: #fff; border-radius: 14px; padding: 14px 18px; margin: 0 0 16px;
+}
+.box-credito .testo span { display: block; font-size: 13px; opacity: .9; }
+.box-credito .testo strong { display: block; font-size: 32px; line-height: 1.1; font-weight: 700; letter-spacing: -.01em; }
+.box-credito .nota { font-size: 13px; opacity: .9; max-width: 200px; text-align: right; }
+.box-credito.vuoto { background: var(--t-yellow); color: var(--i-yellow); }
+@media (max-width: 420px) { .box-credito .nota { text-align: left; max-width: none; } }
