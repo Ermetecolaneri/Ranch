@@ -112,5 +112,10 @@
     if (!me) { try { localStorage.removeItem(CHIAVE); } catch (e) {} ctx.k = null; }
     disegnaMe();
   }).catch(function () {}) : Promise.resolve();
-  pronto.then(route);
+  // ricompense Joint (per mostrarle accanto alle azioni)
+  window.RanchJoint = { attivo: false };
+  ctx.ricaricaJoint = function () {
+    return RanchAPI.getJoint().then(function (j) { window.RanchJoint = j || { attivo: false }; }).catch(function () {});
+  };
+  Promise.all([pronto, ctx.ricaricaJoint()]).then(route);
 })();

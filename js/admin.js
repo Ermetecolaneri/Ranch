@@ -378,6 +378,7 @@ window.Admin = (function () {
         AZIONI_JOINT.forEach(function (a) { r[a[0]] = Number(f[a[0]].value); });
         return RanchAPI.adminJointConfig(ctx.k, attivo, r).then(function () {
           if (ctx.ricaricaMe) ctx.ricaricaMe();
+          if (ctx.ricaricaJoint) ctx.ricaricaJoint();
           joint(el, ctx);
         });
       }

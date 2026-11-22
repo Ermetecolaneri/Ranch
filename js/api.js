@@ -234,7 +234,7 @@
     getJoint: function () {
       if (!D.joint.attivo) return attesa({ attivo: false });
       var c = creditiRanch();
-      return attesa({ attivo: true, classifica: D.soci.filter(function (x) { return x.attivo; }).map(function (x) {
+      return attesa({ attivo: true, reward: D.joint.reward, classifica: D.soci.filter(function (x) { return x.attivo; }).map(function (x) {
         var r = c[x.id]; return { id: x.id, nome: x.nome, foto: x.foto || '', numeroGara: x.numeroGara, numeroFont: x.numeroFont, numeroColore: x.numeroColore,
           joint: r.joint, credito: r.ranch, versato: r.versato }; }).sort(function (a, b) { return b.joint - a.joint || a.nome.localeCompare(b.nome, 'it'); }) });
     },

@@ -52,7 +52,7 @@ window.Progetti = (function () {
             '<path d="M4 9l6-4 6 5 5-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>' +
             '<span>Grafico</span></button>' +
         '</div>' +
-        (ctx.me ? '<div class="azioni-sezione"><button type="button" class="btn primario" id="nuovo">+ Proponi un progetto</button></div>' : '') +
+        (ctx.me ? '<div class="azioni-sezione"><button type="button" class="btn primario" id="nuovo">+ Proponi un progetto ' + UI.premio('progetto_proposto') + '</button></div>' : '') +
         (d.progetti.length ?
           '<div class="griglia-progetti">' + d.progetti.map(function (p) {
             var top = p === amato;
@@ -92,7 +92,7 @@ window.Progetti = (function () {
       return '<div class="box-credito joint-on' + (c > 0 ? '' : ' vuoto') + '" role="status">' +
         '<div class="testo"><span>Il tuo credito Ranch</span><strong>' + UI.euro(c) + '</strong></div>' +
         '<div class="nota">' + UI.joint(me.joint) + '<span>reale ' + UI.euro(me.creditoReale) +
-          (Math.abs(extra) >= 0.01 ? ' · <b class="' + (extra > 0 ? 'pos' : 'neg') + '">' + (extra > 0 ? '+' : '−') + UI.euro(Math.abs(extra)) + '</b> grazie ai Joint' : '') + '</span></div>' +
+          (Math.abs(extra) >= 0.01 ? ' · <b class="' + (extra > 0 ? 'pos' : 'neg') + '">' + (extra > 0 ? '+' : '−') + UI.euro(Math.abs(extra)) + '</b> ' + (extra > 0 ? 'grazie ai Joint' : 'per i Joint degli altri') : '') + '</span></div>' +
       '</div>';
     }
     return '<div class="box-credito' + (c > 0 ? '' : ' vuoto') + '" role="status">' +
@@ -105,7 +105,8 @@ window.Progetti = (function () {
   var CUORE = '<svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M12 20.5s-7.5-4.6-9.6-9.1C1 8.3 2.9 4.5 6.6 4.5c2.2 0 3.9 1.3 5.4 3.3 1.5-2 3.2-3.3 5.4-3.3 3.7 0 5.6 3.8 4.2 6.9-2.1 4.5-9.6 9.1-9.6 9.1z"/></svg>';
   function bottoneCuore(p) {
     return '<button type="button" class="cuore' + (p.mioCuore ? ' acceso' : '') + '" data-cuore="' + esc(p.id) + '" aria-pressed="' + !!p.mioCuore + '" ' +
-      'aria-label="' + (p.mioCuore ? 'Togli il cuore' : 'Metti un cuore') + '">' + CUORE + '<span>' + (p.cuori || 0) + '</span></button>';
+      'aria-label="' + (p.mioCuore ? 'Togli il cuore' : 'Metti un cuore') + '">' + CUORE + '<span>' + (p.cuori || 0) + '</span>' +
+      (UI.premioPunti('cuore') > 0 ? '<em class="premio-mini">+' + UI.premioPunti('cuore') + '</em>' : '') + '</button>';
   }
   function clickCuore(c, ctx) {
     if (!ctx.k || !ctx.me) { UI.toast('Apri il tuo link personale per mettere un cuore'); return; }
@@ -262,7 +263,7 @@ window.Progetti = (function () {
     function avvisa(testo) { limite.textContent = testo; limite.hidden = !testo; }
     function aggiorna() {
       inp.value = n;
-      btn.textContent = 'Acquista ' + plurale(n, 'quota', 'quote') + ' · ' + UI.euro(n * p.costoQuota);
+      btn.innerHTML = 'Acquista ' + plurale(n, 'quota', 'quote') + ' · ' + UI.euro(n * p.costoQuota) + ' ' + UI.premio('quote_per_euro', n * p.costoQuota);
       meno.classList.toggle('al-limite', n <= 1);
       piu.classList.toggle('al-limite', n >= max);
       meno.setAttribute('aria-disabled', n <= 1);

@@ -329,3 +329,16 @@ revoke all on function public.get_joint(), public.admin_joint(text), public.admi
   public.admin_joint_dai(text, uuid, int, text) from public;
 grant execute on function public.get_joint(), public.admin_joint(text), public.admin_joint_config(text, boolean, jsonb),
   public.admin_joint_dai(text, uuid, int, text) to anon, authenticated;
+
+-- le ricompense sono pubbliche (servono per mostrarle accanto alle azioni)
+create or replace function public.get_joint() returns jsonb
+language sql stable security definer set search_path = public as $$
+  select case when not public._joint_attivo() then jsonb_build_object('attivo', false) else
+    jsonb_build_object('attivo', true,
+      'reward', (select reward from public.joint_config where id = 1),
+      'classifica', coalesce((select jsonb_agg(jsonb_build_object('id', s.id, 'nome', s.nome, 'foto', coalesce(s.foto_path, ''),
+                         'numeroGara', s.numero_gara, 'numeroFont', s.numero_font, 'numeroColore', s.numero_colore,
+                         'joint', c.joint, 'credito', c.ranch, 'versato', c.versato) order by c.joint desc, lower(s.nome))
+                       from public.soci s join public._crediti_ranch() c on c.socio_id = s.id where s.attivo), '[]'::jsonb))
+  end
+$$;

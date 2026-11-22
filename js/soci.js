@@ -67,7 +67,9 @@ window.Soci = (function () {
               (s.bio ? '<p class="bio">' + esc(s.bio) + '</p>' : '') +
             '</div>' +
           '</div>' +
-          (mia ? '<button type="button" class="btn" id="modifica">Modifica profilo</button>' : '') +
+          (mia ? '<button type="button" class="btn" id="modifica">Modifica profilo' +
+            (!(s.foto && s.numeroGara && s.bio) ? ' ' + UI.premio('profilo_completo') : '') + '</button>' +
+            (!(s.foto && s.numeroGara && s.bio) && UI.premioPunti('profilo_completo') > 0 ? '<p class="muted small">Completa foto, numero e bio per guadagnare i Joint.</p>' : '') : '') +
           (mia ? '<div class="telegram-box" id="telegram-box"></div>' : '') +
           '<div class="metriche">' +
             '<div class="metrica"><span>Credito disponibile</span><strong>' + UI.euro(s.credito) + '</strong></div>' +
@@ -85,6 +87,7 @@ window.Soci = (function () {
                 return '<li' + (vis ? '' : ' class="nascosta"') + '><span><b>' + esc(r.titolo) + '</b><span class="sotto-voce">scade ' + esc(UI.data(r.scadenza)) +
                   (!vis ? ' · non ancora aperta' : r.scadenza < oggiIso ? ' · <span class="neg">scaduta</span>' : '') + '</span></span>' +
                   '<span class="rata-azione"><b>' + UI.euro(r.importo) + '</b>' +
+                  (vis && (mia || admin) && r.scadenza >= oggiIso ? UI.premio('rata_in_tempo') : '') +
                   (vis && (mia || admin) ? '<button type="button" class="btn primario piccolo" data-paga="' + esc(r.id) + '|' + esc(s.id) + '">' + (mia ? 'Pagata' : 'Segna pagata') + '</button>' : '') +
                   '</span></li>';
               }).join('') + '</ul>' +

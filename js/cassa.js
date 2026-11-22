@@ -260,7 +260,8 @@ window.Cassa = (function () {
       '<ul class="elenco rata-soci">' + r.soci.map(function (s) {
         var azione = '';
         if (!s.pagataIl && visibile && (admin || s.id === io))
-          azione = '<button type="button" class="btn primario piccolo" data-paga="' + esc(r.id) + '|' + esc(s.id) + '">' + (s.id === io ? 'L\'ho pagata' : 'Segna pagata') + '</button>';
+          azione = '<span class="rata-azione">' + (r.scadenza >= oggi() ? UI.premio('rata_in_tempo') : '') +
+            '<button type="button" class="btn primario piccolo" data-paga="' + esc(r.id) + '|' + esc(s.id) + '">' + (s.id === io ? 'L\'ho pagata' : 'Segna pagata') + '</button></span>';
         else if (s.pagataIl && admin)
           azione = '<button type="button" class="btn piccolo" data-annulla="' + esc(r.id) + '|' + esc(s.id) + '">Annulla</button>';
         return '<li><span class="rata-socio">' + UI.avatar(s, 28) + '<span>' + esc(s.nome) +

@@ -60,7 +60,8 @@ window.Eventi = (function () {
             (e.descrizione ? '<p class="descr-lunga">' + esc(e.descrizione) + '</p>' : '') +
             (e.stato === 'da_programmare' ?
               '<h2>Quando ti va bene?</h2>' +
-              '<p class="muted small">' + (ctx.me ? 'Tocca il cuore su tutte le date in cui puoi esserci.' : 'Apri il tuo link personale per scegliere le date.') + '</p>' +
+              '<p class="muted small">' + (ctx.me ? 'Tocca il cuore su tutte le date in cui puoi esserci.' +
+                (e.date.some(function (d) { return d.mioVoto; }) ? '' : ' ' + UI.premio('voto_evento')) : 'Apri il tuo link personale per scegliere le date.') + '</p>' +
               '<ul class="date-candidate">' + e.date.map(function (d) {
                 var g = UI.giornoBreve(d.dataInizio);
                 return '<li' + (d.voti && d.voti === maxVoti ? ' class="top"' : '') + '>' +
