@@ -14,8 +14,8 @@
   --accent-ink: #c24a00;
   --on-accent: #111111;
   --accent-bg: #fff0e5;
-  --blu: #1d4ed8;
-  --bordo-duo: linear-gradient(100deg, var(--accent), var(--blu));
+  --giallo: #ffc400;
+  --bordo-duo: linear-gradient(100deg, var(--giallo), var(--accent));
   --pos: #2f7a32;
   --err: #b3261e;
   --radius: 12px;
@@ -32,7 +32,7 @@
 @media (prefers-color-scheme: dark) {
   :root {
     --bg: #111113; --card: #1c1c1f; --ink: #ededef; --muted: #a1a1aa; --line: #2e2e33;
-    --accent: #ff7a1a; --accent-ink: #ff9a52; --on-accent: #111111; --accent-bg: #3a1c08; --blu: #6b9bff; --pos: #8fd08f; --err: #f28b82;
+    --accent: #ff7a1a; --accent-ink: #ff9a52; --on-accent: #111111; --accent-bg: #3a1c08; --giallo: #ffcf33; --pos: #8fd08f; --err: #f28b82;
     --t-violet: #2b2856; --i-violet: #c9c5fa;
     --t-aqua: #0f3a31;   --i-aqua: #9fe1cb;
     --t-orange: #4a2213; --i-orange: #f5c4b3;
@@ -325,7 +325,7 @@ body:has(.demo-banner:not([hidden])) .view { padding-bottom: 56px; }
 .chip { border: 1px solid var(--line); background: var(--bg); color: var(--ink); border-radius: 99px; padding: 4px 10px; font: inherit; font-size: 13px; cursor: pointer; }
 .sel-soci { margin-top: 12px; border-top: 1px solid var(--line); padding-top: 8px; }
 .sel-azioni { font-size: 13px; margin-bottom: 4px; }
-.link { background: none; border: none; padding: 0; color: var(--blu); font: inherit; cursor: pointer; text-decoration: underline; }
+.link { background: none; border: none; padding: 0; color: var(--accent-ink); font: inherit; cursor: pointer; text-decoration: underline; }
 .sel-socio { display: flex; align-items: center; gap: 10px; padding: 6px 0; cursor: pointer; }
 .sel-socio input { width: 18px; height: 18px; accent-color: var(--accent); }
 .sel-socio > span:not(.avatar) { flex: 1; }
@@ -371,17 +371,17 @@ body:has(.demo-banner:not([hidden])) .view { padding-bottom: 56px; }
 @media (prefers-reduced-motion: reduce) { .cuore.pop svg { animation: none; } }
 
 /* ---------------- Grafico ---------------- */
-:root { --serie-obiettivo: #5b7fd6; --serie-raccolto: #2b9348; }
-@media (prefers-color-scheme: dark) { :root { --serie-obiettivo: #6f8fe6; --serie-raccolto: #3fa86c; } }
-.kpi-btn { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; min-width: 0; cursor: pointer; font: inherit; color: var(--blu); }
+:root { --serie-obiettivo: #85858e; --serie-raccolto: #ff6600; }
+@media (prefers-color-scheme: dark) { :root { --serie-obiettivo: #71717a; --serie-raccolto: #ff7a1a; } }
+.kpi-btn { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; min-width: 0; cursor: pointer; font: inherit; color: var(--accent-ink); }
 @media (max-width: 480px) {
   .kpi { min-width: 0; padding: 10px 12px; }
   .kpi strong { font-size: 18px; }
   .kpi small { font-size: 13px; }
   .kpi-btn { padding: 8px 10px; }
 }
-.kpi-btn span { color: var(--blu); font-weight: 600; font-size: 14px; }
-.kpi-btn:hover { border-color: var(--blu); }
+.kpi-btn span { color: var(--accent-ink); font-weight: 600; font-size: 14px; }
+.kpi-btn:hover { border-color: var(--accent); }
 .modal.grafico { max-width: 720px; }
 .testa-grafico { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
 .testa-grafico h2 { margin: 0; }
@@ -407,7 +407,7 @@ body:has(.demo-banner:not([hidden])) .view { padding-bottom: 56px; }
   padding: 6px 10px; font-size: 12px; box-shadow: 0 4px 12px rgba(0,0,0,.12); max-width: 260px;
 }
 .tabella-grafico { margin-top: 8px; font-size: 14px; }
-.tabella-grafico summary { cursor: pointer; color: var(--blu); }
+.tabella-grafico summary { cursor: pointer; color: var(--accent-ink); }
 .tabella-grafico table { width: 100%; border-collapse: collapse; margin-top: 8px; }
 .tabella-grafico th, .tabella-grafico td { text-align: left; padding: 6px 4px; border-top: 1px solid var(--line); }
 .tabella-grafico th:nth-child(n+3), .tabella-grafico td:nth-child(n+3) { text-align: right; white-space: nowrap; }
@@ -470,3 +470,4 @@ body:has(.demo-banner:not([hidden])) .view { padding-bottom: 56px; }
 .box-credito .nota { font-size: 12px; color: var(--muted); max-width: 200px; text-align: right; }
 .box-credito.vuoto { background: var(--card); border: 1px solid var(--line); }
 @media (max-width: 420px) { .box-credito .nota { text-align: left; max-width: none; } }
+.g-tooltip[hidden] { display: none; }
