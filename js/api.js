@@ -44,6 +44,12 @@
   // ---------- modalità demo (stesse regole del backend) ----------
   var D = window.RANCH_DEMO;
   if (D && !D.cuori) D.cuori = { p01: ['s01', 's04', 's07'], p02: ['s03'] };
+  if (D && !D.piano) D.piano = { titolo: '4 moto in 8', soci: 8, aggiornatoIl: '2026-11-22T01:00:00',
+    note: 'Moto da 1.400 €. Ingresso in due metà (nov–dic) che compra la prima coppia a dicembre; rate gen–apr per la seconda coppia ad aprile.',
+    rate: [{ mese: '2026-11-01', voce: 'Ingresso (1/2)', quotaMoto: 175, quotaCassa: 0 }, { mese: '2026-12-01', voce: 'Ingresso (2/2)', quotaMoto: 175, quotaCassa: 0 },
+           { mese: '2027-01-01', voce: 'Rata', quotaMoto: 87.5, quotaCassa: 15.625 }, { mese: '2027-02-01', voce: 'Rata', quotaMoto: 87.5, quotaCassa: 15.625 },
+           { mese: '2027-03-01', voce: 'Rata', quotaMoto: 87.5, quotaCassa: 15.625 }, { mese: '2027-04-01', voce: 'Rata', quotaMoto: 87.5, quotaCassa: 15.625 }],
+    uscite: [{ mese: '2026-12-01', voce: 'Prima coppia di moto (2 × 1.400 €)', importo: 2800 }, { mese: '2027-04-01', voce: 'Seconda coppia di moto (2 × 1.400 €)', importo: 2800 }] };
   if (D && !D.eventi) D.eventi = [
     { id: 'e01', titolo: 'Gara sociale d\'inverno', descrizione: 'Tre manche sul tracciato completo, poi pranzo tutti insieme.', foto: '',
       stato: 'da_programmare', dataInizio: null, dataFine: null, creatoIl: '2026-11-10T10:00:00', date: [
@@ -249,6 +255,16 @@
           .map(function (p) { return { id: p.id, titolo: p.titolo, scadenza: p.scadenza, stato: p.stato, totale: p.quoteTotali * p.costoQuota }; })
           .sort(function (a, b) { return a.scadenza < b.scadenza ? -1 : 1; }),
         raccolta: Object.keys(giorni).sort().map(function (g) { return { giorno: g, importo: giorni[g] }; }) });
+    },
+
+    // ----- piano di cassa (demo) -----
+    getPiano: function () { return attesa(D.piano); },
+    adminPianoSalva: function (k, d) {
+      var a = perCodice(k); if (!a || !a.admin) return rifiuto('Funzione riservata all\'admin.');
+      D.piano = { titolo: d.titolo, soci: d.soci, note: d.note, aggiornatoIl: new Date().toISOString(),
+        rate: d.rate.slice().sort(function (x, y) { return x.mese < y.mese ? -1 : 1; }),
+        uscite: d.uscite.slice().sort(function (x, y) { return x.mese < y.mese ? -1 : 1; }) };
+      return attesa(D.piano);
     },
 
     // ----- eventi (demo) -----
@@ -490,6 +506,10 @@
     },
     cuore: function (k, id) { return rpc('cuore', { p_k: k, p_id: id }); },
     getAndamento: function () { return rpc('get_andamento'); },
+    getPiano: function () { return rpc('get_piano'); },
+    adminPianoSalva: function (k, d) {
+      return rpc('admin_piano_salva', { p_k: k, p_titolo: d.titolo, p_soci: d.soci, p_note: d.note || '', p_rate: d.rate, p_uscite: d.uscite });
+    },
 
     // ----- eventi -----
     getEventi: function (k) {

@@ -51,7 +51,13 @@ window.UI = (function () {
       'aria-label="Numero ' + esc(socio.numeroGara) + '">' + esc(socio.numeroGara) + '</span>';
   }
 
-  var fmtEuro =new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR', maximumFractionDigits: 2, minimumFractionDigits: 0 });
+  // interi senza decimali ("6.100 €"), altrimenti sempre due ("762,50 €"); separatore delle migliaia anche a 4 cifre
+  function formatoEuro(dec) {
+    try { return new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR', minimumFractionDigits: dec, maximumFractionDigits: dec, useGrouping: 'always' }); }
+    catch (e) { return new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR', minimumFractionDigits: dec, maximumFractionDigits: dec }); }
+  }
+  var fmtEuro0 = formatoEuro(0), fmtEuro2 = formatoEuro(2);
+  var fmtEuro = { format: function (n) { var r = Math.round(n * 100) / 100; return (Number.isInteger(r) ? fmtEuro0 : fmtEuro2).format(r); } };
   function euro(n) { return fmtEuro.format(Number(n) || 0); }
   function euroSegno(n) { n = Number(n) || 0; return (n > 0 ? '+' : n < 0 ? '−' : '') + fmtEuro.format(Math.abs(n)); }
 
