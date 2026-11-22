@@ -63,25 +63,30 @@ window.Cassa = (function () {
     function seg(v, cls, nome) { return v > 0.005 ? '<span class="s ' + cls + '" style="width:' + w(v) + '" title="' + esc(nome + ': ' + UI.euro(v)) + '"></span>' : ''; }
     var IN = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M12 4v13M6 11l6 6 6-6M5 20h14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
     var OUT = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M12 20V7M6 13l6-6 6 6M5 4h14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+    var pctBl = uscite > 0 ? Math.round(t.bloccato / uscite * 100) : 0;
+    function barra(v, cls, nome) {
+      return '<div class="bil-bar"><span class="s ' + cls + '" style="width:' + w(v) + '" title="' + esc(nome + ': ' + UI.euro(v)) + '"></span></div>';
+    }
     return '<section class="bil" aria-label="Bilancio della cassa">' +
       '<div class="bil-col entrate">' +
-        '<header><span class="ico">' + IN + '</span><span class="tit">Entrate<small>in cassa + rate da incassare</small></span><strong>' + UI.euro(entrate) + '</strong></header>' +
-        '<div class="bil-bar">' + seg(t.disponibile, 'pieno', 'Disponibile') + seg(t.future, 'righe', 'Rate future') + '</div>' +
-        '<ul>' +
-          '<li><i class="pt pieno"></i><span>Disponibile<small>in cassa ora' + (t.bloccato > 0.005 ? ' · di cui bloccati ' + UI.euro(t.bloccato) : '') + '</small></span><b>' + UI.euro(t.disponibile) + '</b></li>' +
-          '<li><i class="pt righe"></i><span>Rate future<small>' + (t.scadute > 0 ? '<span class="neg">' + UI.euro(t.scadute) + ' scadute</span>' : 'ancora da incassare') + '</small></span><b>' + UI.euro(t.future) + '</b></li>' +
-        '</ul>' +
+        '<header><span class="ico">' + IN + '</span><span class="tit">Cassa<small>in cassa ora' +
+          (t.bloccato > 0.005 ? ' · di cui bloccati ' + UI.euro(t.bloccato) : '') + '</small></span><strong>' + UI.euro(t.disponibile) + '</strong></header>' +
+        barra(t.disponibile, 'pieno', 'Cassa') +
+        '<div class="figli">' +
+          '<div class="figlio fut"><div class="riga"><span>Rate future<small>' +
+            (t.scadute > 0 ? '<span class="neg">' + UI.euro(t.scadute) + ' scadute</span>' : 'ancora da incassare') + '</small></span><b>+' + UI.euro(t.future) + '</b></div>' +
+            barra(t.future, 'righe', 'Rate future') + '</div>' +
+          '<div class="figlio tot"><div class="riga"><span>Totale futuro<small>cassa + rate future</small></span><b>' + UI.euro(entrate) + '</b></div>' +
+            barra(entrate, 'totale', 'Totale futuro') + '</div>' +
+        '</div>' +
       '</div>' +
       '<div class="bil-col uscite">' +
         '<header><span class="ico">' + OUT + '</span><span class="tit">Uscite<small>costo stimato · ' + plurale(t.inCorso.length, 'progetto', 'progetti') + ' in raccolta</small></span><strong>' + UI.euro(uscite) + '</strong></header>' +
-        '<div class="bil-bar">' + seg(t.bloccato, 'pieno', 'Già bloccati') + seg(Math.max(0, uscite - t.bloccato), 'righe', 'Da raccogliere') + '</div>' +
-        '<ul>' +
-          '<li><i class="pt pieno"></i><span>Già bloccati<small>quote comprate dai soci</small></span><b>' + UI.euro(t.bloccato) + '</b></li>' +
-          '<li><i class="pt righe"></i><span>Da raccogliere<small>per finire i progetti</small></span><b>' + UI.euro(Math.max(0, uscite - t.bloccato)) + '</b></li>' +
-        '</ul>' +
+        '<div class="bil-bar traccia" style="width:' + w(uscite) + '"><span class="s pieno" style="width:' + pctBl + '%" title="' + esc('Bloccati: ' + UI.euro(t.bloccato)) + '"></span></div>' +
+        '<p class="rapporto"><b>' + UI.euro(t.bloccato) + '</b> bloccati / ' + UI.euro(uscite) + ' da bloccare per i progetti <span class="pct">' + pctBl + '%</span></p>' +
       '</div>' +
       '<div class="bil-saldo ' + (ok ? 'ok' : 'ko') + '">' +
-        '<span class="lab">Balance<small>entrate − uscite</small></span>' +
+        '<span class="lab">Balance<small>totale futuro − uscite</small></span>' +
         '<span class="pill"><i aria-hidden="true">' + (ok ? '✓' : '!') + '</i>' + (balance > 0.005 ? '+' : balance < -0.005 ? '−' : '') + UI.euro(Math.abs(balance)) + '</span>' +
       '</div>' +
     '</section>' +
