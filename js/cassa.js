@@ -23,6 +23,10 @@ window.Cassa = (function () {
       m.voci.push(e.causale + (e.soci > 1 ? ' ×' + e.soci : ''));
     });
     var fatti = c.progetti.filter(realizzato), inCorso = c.progetti.filter(function (x) { return x.stato === 'raccolta'; });
+    inCorso.sort(function (a, b) {
+      var pa = a.totale > 0 ? num(a.raccolto) / num(a.totale) : 0, pb = b.totale > 0 ? num(b.raccolto) / num(b.totale) : 0;
+      return (pb - pa) || String(a.scadenza).localeCompare(String(b.scadenza));
+    });
     fatti.forEach(function (x) {
       var m = mese(String(x.eseguitoIl || x.scadenza).slice(0, 7));
       m.uscite += num(x.totale);
@@ -60,13 +64,7 @@ window.Cassa = (function () {
             (t.scadute > 0 ? '<small class="neg">' + UI.euro(t.scadute) + ' scadute</small>' : '') + '</div>' +
           '<div class="kpi"><span>Bloccato nei progetti</span><strong>' + UI.euro(t.bloccato) + '</strong></div>' +
         '</div>' +
-        '<p class="quadratura ' + (t.quadra ? 'ok' : 'ko') + '">' + (t.quadra ? '✓ Quadra: ' : '⚠ Non quadra: ') +
-          'disponibile ' + UI.euro(t.disponibile) + ' = credito libero dei soci ' + UI.euro(t.libero) +
-          ' + quote bloccate nei progetti in raccolta ' + UI.euro(t.bloccato) +
-          (t.quadra ? '' : ' (differenza ' + UI.euro(t.disponibile - t.libero - t.bloccato) + ')') + '</p>' +
-
         '<h2>Flusso di cassa</h2>' +
-        '<p class="muted small">Solo soldi veri: entrano le rate pagate, escono i progetti realizzati (nel giorno in cui passano in esecuzione).</p>' +
         (t.mesi.length ?
           '<div class="tabella-wrap"><table class="tabella">' +
             '<thead><tr><th>Mese</th><th class="n">Entrate</th><th class="n">Uscite</th><th class="n">Saldo</th></tr></thead><tbody>' +

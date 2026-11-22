@@ -36,6 +36,12 @@ window.Progetti = (function () {
   function lista(view, ctx) {
     view.innerHTML = UI.caricamento();
     RanchAPI.getProgetti(ctx.k).then(function (d) {
+      // in ordine di completamento: prima i più vicini al 100%
+      function pct(p) { return p.totale > 0 ? Number(p.raccolto) / Number(p.totale) : 0; }
+      d.progetti.sort(function (a, b) { return (pct(b) - pct(a)) || String(a.scadenza).localeCompare(String(b.scadenza)); });
+      // il più amato (più cuori, almeno uno) si accende
+      var maxCuori = d.progetti.reduce(function (m, p) { return Math.max(m, Number(p.cuori) || 0); }, 0);
+      var amato = maxCuori > 0 ? d.progetti.filter(function (p) { return Number(p.cuori) === maxCuori; })[0] : null;
       view.innerHTML =
         boxCredito(ctx.me) +
         '<div class="kpi-centro">' +
@@ -49,8 +55,10 @@ window.Progetti = (function () {
         (ctx.me ? '<div class="azioni-sezione"><button type="button" class="btn primario" id="nuovo">+ Proponi un progetto</button></div>' : '') +
         (d.progetti.length ?
           '<div class="griglia-progetti">' + d.progetti.map(function (p) {
-            return '<a class="card-progetto" href="#/progetti/' + esc(p.id) + '">' +
-              '<div class="foto-box">' + foto(p, 'foto-progetto') + badge(p) + bottoneCuore(p) + '</div>' +
+            var top = p === amato;
+            return '<a class="card-progetto' + (top ? ' amato' : '') + '" href="#/progetti/' + esc(p.id) + '">' +
+              '<div class="foto-box">' + foto(p, 'foto-progetto') + badge(p) + bottoneCuore(p) +
+                (top ? '<span class="nastro-amato">🔥 Il più amato</span>' : '') + '</div>' +
               '<div class="corpo">' +
                 '<h2>' + esc(p.titolo) + '</h2>' +
                 (p.descrizione ? '<p class="descr">' + esc(p.descrizione) + '</p>' : '') +
