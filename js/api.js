@@ -222,6 +222,7 @@
         return rifiuto('Per passare in esecuzione il progetto deve essere finanziato al 100%: ' + (manc === 1 ? 'manca 1 quota' : 'mancano ' + manc + ' quote') + ' (' + UI.euro(manc * p.costoQuota) + ').');
       p.stato = stato;
       p.eseguitoIl = stato === 'raccolta' ? null : (p.eseguitoIl || new Date().toISOString());
+      p.chiusoIl = stato === 'chiuso' ? (p.chiusoIl || new Date().toISOString()) : null;
       return attesa(progettoPubblico(p));
     },
     eliminaProgetto: function (k, id) {
@@ -282,7 +283,7 @@
       var prog = D.progetti.filter(function (x) { return x.stato !== 'eliminato'; }).map(function (x) {
         var pp = progettoPubblico(x), sost = {};
         D.movimenti.forEach(function (m) { if (m.progetto === x.id) sost[m.socio] = (sost[m.socio] || 0) + m.quote; });
-        return { id: x.id, titolo: x.titolo, descrizione: x.descrizione, stato: x.stato, scadenza: x.scadenza, eseguitoIl: x.eseguitoIl || null,
+        return { id: x.id, titolo: x.titolo, descrizione: x.descrizione, stato: x.stato, scadenza: x.scadenza, eseguitoIl: x.eseguitoIl || null, chiusoIl: x.chiusoIl || null,
                  quoteTotali: x.quoteTotali, costoQuota: x.costoQuota, totale: pp.totale, raccolto: pp.raccolto, quoteVendute: pp.quoteVendute,
                  sostenitori: Object.keys(sost).filter(function (k) { return sost[k] > 0; }).length };
       }).sort(function (a, b) { return a.scadenza < b.scadenza ? -1 : 1; });

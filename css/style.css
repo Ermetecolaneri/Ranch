@@ -589,9 +589,9 @@ h2.primo { margin-top: 0; }
 @media (prefers-reduced-motion: reduce) { .tendina-rate { animation: none; } }
 
 /* ---------- bilancio della cassa ---------- */
-.bilancio { display: grid; gap: 14px; margin-bottom: 22px; grid-template-areas: "piu" "meno" "tot"; }
+.bilancio { display: grid; gap: 14px; margin-bottom: 14px; grid-template-areas: "piu" "meno" "tot"; }
 @media (min-width: 720px) { .bilancio { grid-template-columns: minmax(0, 1fr) 250px; grid-template-areas: "piu tot" "meno tot"; gap: 14px 24px; } }
-.bil-piu { grid-area: piu; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+.bil-piu { grid-area: piu; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
 .bil-meno { grid-area: meno; }
 .eq-box { position: relative; min-width: 0; padding: 12px 14px; background: var(--card); border: 1px solid var(--line); border-radius: 16px; }
 .eq-box span { display: block; font-size: 13px; color: var(--muted); }
@@ -621,7 +621,20 @@ h2.primo { margin-top: 0; }
 @media (max-width: 520px) {
   .bil-piu { gap: 10px; }
   .bil-piu .eq-box { padding: 10px 9px; }
-  .bil-piu .eq-box strong { font-size: 17px; }
-  .bil-piu .eq-box span, .bil-piu .eq-box small { font-size: 11px; }
+  .bil-piu .eq-box strong { font-size: 19px; }
+  .bil-piu .eq-box span, .bil-piu .eq-box small { font-size: 12px; }
   .bil-piu .op { left: -12px; width: 20px; height: 20px; font-size: 13px; }
 }
+
+.immobilizzato {
+  display: flex; align-items: center; gap: 12px; width: 100%; margin: 0 0 22px; padding: 12px 14px; text-align: left;
+  font: inherit; color: var(--ink); cursor: pointer; border-radius: 14px; border: 1px solid var(--line);
+  background: repeating-linear-gradient(135deg, var(--card) 0 10px, var(--bg) 10px 20px);
+}
+.immobilizzato:hover { border-color: var(--muted); }
+.im-icona { flex: none; width: 40px; height: 40px; border-radius: 10px; display: grid; place-items: center; background: var(--ink); color: var(--bg); }
+.im-testo { flex: 1; min-width: 0; }
+.im-testo span { display: block; font-size: 13px; color: var(--muted); }
+.im-testo strong { display: block; font-size: 20px; font-weight: 700; }
+.im-testo small { display: block; font-size: 12px; color: var(--muted); }
+.im-cta { color: var(--accent-ink); font-weight: 600; white-space: nowrap; }

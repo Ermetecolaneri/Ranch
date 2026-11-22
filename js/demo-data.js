@@ -19,7 +19,7 @@ window.RANCH_DEMO = {
     { id: 'p02', titolo: 'Illuminazione pista', descrizione: 'Fari LED su pali per girare anche dopo il tramonto.',
       quoteTotali: 7, costoQuota: 20, scadenza: '2027-01-15', stato: 'sviluppo', creatoDa: 's07', foto: '', creatoIl: '2026-09-05T10:00:00', eseguitoIl: '2026-11-14T10:00:00' },
     { id: 'p03', titolo: 'Box attrezzi', descrizione: 'Container per attrezzi e ricambi, con banco da lavoro.',
-      quoteTotali: 12, costoQuota: 5, scadenza: '2026-11-15', stato: 'chiuso', creatoDa: 's05', foto: '', creatoIl: '2026-08-20T10:00:00', eseguitoIl: '2026-11-12T10:00:00' }
+      quoteTotali: 12, costoQuota: 5, scadenza: '2026-11-15', stato: 'chiuso', creatoDa: 's05', foto: '', creatoIl: '2026-08-20T10:00:00', eseguitoIl: '2026-11-12T10:00:00', chiusoIl: '2026-11-20T10:00:00' }
   ],
 
   movimenti: (function () {

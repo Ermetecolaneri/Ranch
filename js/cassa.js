@@ -52,29 +52,56 @@ window.Cassa = (function () {
              quadra: Math.abs(disponibile - (num(c.creditoLibero) + bloccato)) < 0.005 };
   }
 
-  // tutti i + (disponibile, rate future, capitale immobilizzato) − costi (progetti attivi) = balance
+  // cash flow: disponibile + rate future − costo stimato dei progetti attivi = balance
+  // (l'immobilizzato è a parte: i beni dei progetti chiusi)
   function bilancio(t) {
-    var immob = t.fatti.reduce(function (s, x) { return s + num(x.totale); }, 0);
-    var piu = t.disponibile + t.future + immob, balance = piu - t.attivi, ok = balance >= -0.005;
+    var balance = t.disponibile + t.future - t.attivi, ok = balance >= -0.005;
     var pctBl = t.attivi > 0 ? Math.round(t.bloccato / t.attivi * 100) : 0;
-    var nChiusi = t.fatti.filter(function (x) { return x.stato === 'chiuso'; }).length, nEsec = t.fatti.length - nChiusi;
+    var chiusi = t.fatti.filter(function (x) { return x.stato === 'chiuso'; });
+    var immob = chiusi.reduce(function (s, x) { return s + num(x.totale); }, 0);
     return '<section class="bilancio" aria-label="Bilancio della cassa">' +
       '<div class="bil-piu">' +
-        '<div class="eq-box disp"><span>Disponibile</span><strong>' + UI.euro(t.disponibile) + '</strong><small>in cassa ora</small></div>' +
+        '<div class="eq-box disp"><span>Disponibile</span><strong>' + UI.euro(t.disponibile) + '</strong>' +
+          '<small>di cui bloccati nei progetti <b>' + UI.euro(t.bloccato) + '</b></small></div>' +
         '<div class="eq-box fut"><i class="op">+</i><span>Rate future</span><strong>' + UI.euro(t.future) + '</strong>' +
           (t.scadute > 0 ? '<small class="neg">' + UI.euro(t.scadute) + ' scadute</small>' : '<small>da incassare</small>') + '</div>' +
-        '<div class="eq-box immob"><i class="op">+</i><span>Immobilizzato</span><strong>' + UI.euro(immob) + '</strong>' +
-          '<small>' + (t.fatti.length ? [nChiusi ? plurale(nChiusi, 'progetto chiuso', 'progetti chiusi') : '', nEsec ? nEsec + ' in esecuzione' : ''].filter(Boolean).join(' · ') : 'nessun progetto realizzato') + '</small></div>' +
       '</div>' +
       '<div class="bil-meno">' +
-        '<div class="eq-box costi"><i class="op">−</i><span>Costi · progetti attivi</span><strong>' + UI.euro(t.attivi) + '</strong>' +
+        '<div class="eq-box costi"><i class="op">−</i><span>Costo stimato dei progetti</span><strong>' + UI.euro(t.attivi) + '</strong>' +
           '<small>' + plurale(t.inCorso.length, 'progetto', 'progetti') + ' in raccolta · bloccati <b>' + UI.euro(t.bloccato) + '</b> / ' + UI.euro(t.attivi) + '</small>' +
           '<span class="mini-barra"><span style="width:' + pctBl + '%"></span></span></div>' +
       '</div>' +
       '<div class="bil-tot ' + (ok ? 'ok' : 'ko') + '"><i class="op">=</i>' +
         '<span>Balance</span><strong>' + (balance > 0.005 ? '+' : balance < -0.005 ? '−' : '') + UI.euro(Math.abs(balance)) + '</strong>' +
-        '<small>' + UI.euro(piu) + ' − ' + UI.euro(t.attivi) + '</small></div>' +
-    '</section>';
+        '<small>' + UI.euro(t.disponibile + t.future) + ' − ' + UI.euro(t.attivi) + '</small></div>' +
+    '</section>' +
+    '<button type="button" class="immobilizzato" id="apri-immob">' +
+      '<span class="im-icona" aria-hidden="true"><svg viewBox="0 0 24 24" width="22" height="22"><path d="M3 10.5 12 4l9 6.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg></span>' +
+      '<span class="im-testo"><span>Immobilizzato · beni della società</span><strong>' + UI.euro(immob) + '</strong>' +
+        '<small>' + (chiusi.length ? plurale(chiusi.length, 'progetto chiuso', 'progetti chiusi') : 'nessun progetto chiuso') + '</small></span>' +
+      '<span class="im-cta">Vedi ›</span>' +
+    '</button>';
+  }
+
+  function apriImmobilizzato(t) {
+    var chiusi = t.fatti.filter(function (x) { return x.stato === 'chiuso'; })
+      .sort(function (a, b) { return String(b.chiusoIl || '').localeCompare(String(a.chiusoIl || '')); });
+    var w = document.createElement('div');
+    w.className = 'modal-bg';
+    w.innerHTML = '<div class="modal" role="dialog" aria-modal="true" aria-label="Immobilizzato">' +
+      '<h2>Immobilizzato</h2>' +
+      (chiusi.length ?
+        '<ul class="elenco">' + chiusi.map(function (x) {
+          return '<li><span><a href="#/progetti/' + esc(x.id) + '" data-chiudi>' + esc(x.titolo) + '</a>' +
+            '<span class="sotto-voce">chiuso il ' + esc(x.chiusoIl ? UI.data(x.chiusoIl) : '—') + '</span></span><b>' + UI.euro(x.totale) + '</b></li>';
+        }).join('') + '</ul>' +
+        '<p class="anteprima">Totale: <b>' + UI.euro(chiusi.reduce(function (s, x) { return s + num(x.totale); }, 0)) + '</b></p>'
+        : '<p class="muted">Nessun progetto chiuso. Quando l\'admin chiude un progetto, il suo valore finisce qui.</p>') +
+      '<div class="azioni"><button type="button" class="btn" data-a="no">Chiudi</button></div></div>';
+    document.body.appendChild(w);
+    w.addEventListener('click', function (e) {
+      if (e.target === w || (e.target.getAttribute && e.target.getAttribute('data-a') === 'no') || e.target.hasAttribute('data-chiudi')) w.remove();
+    });
   }
 
   function mostra(view, ctx) {
@@ -153,6 +180,7 @@ window.Cassa = (function () {
         });
       });
       collegaPagamenti(view, c.rate, ctx, function () { mostra(view, ctx); });
+      view.querySelector('#apri-immob').addEventListener('click', function () { apriImmobilizzato(t); });
       view.querySelectorAll('[data-vis]').forEach(function (bt) {
         bt.addEventListener('click', function () {
           var v = bt.getAttribute('data-vis').split('|');
