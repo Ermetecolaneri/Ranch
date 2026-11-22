@@ -68,9 +68,10 @@ window.Cassa = (function () {
       return '<div class="bil-bar"><span class="s ' + cls + '" style="width:' + w(v) + '" title="' + esc(nome + ': ' + UI.euro(v)) + '"></span></div>';
     }
     return '<section class="bil" aria-label="Bilancio della cassa">' +
-      '<div class="bil-col entrate">' +
-        '<header><span class="ico">' + IN + '</span><span class="tit">Cassa<small>in cassa ora' +
-          (t.bloccato > 0.005 ? ' · di cui bloccati ' + UI.euro(t.bloccato) : '') + '</small></span><strong>' + UI.euro(t.disponibile) + '</strong></header>' +
+      '<details class="bil-col entrate" data-sez="top-cassa"' + (sezioniAperte['top-cassa'] ? ' open' : '') + '>' +
+        '<summary><header><span class="ico">' + IN + '</span><span class="tit">Cassa<small>in cassa ora' +
+          (t.bloccato > 0.005 ? ' · di cui bloccati ' + UI.euro(t.bloccato) : '') + ' · totale futuro ' + UI.euro(entrate) + '</small></span><strong>' + UI.euro(t.disponibile) + '</strong>' +
+          '<span class="freccia" aria-hidden="true">›</span></header></summary>' +
         barra(t.disponibile, 'pieno', 'Cassa') +
         '<div class="figli">' +
           '<div class="figlio fut"><div class="riga"><span>Rate future<small>' +
@@ -79,26 +80,33 @@ window.Cassa = (function () {
           '<div class="figlio tot"><div class="riga"><span>Totale futuro<small>cassa + rate future</small></span><b>' + UI.euro(entrate) + '</b></div>' +
             barra(entrate, 'totale', 'Totale futuro') + '</div>' +
         '</div>' +
-      '</div>' +
-      '<div class="bil-col uscite">' +
-        '<header><span class="ico">' + OUT + '</span><span class="tit">Uscite<small>costo stimato · ' + plurale(t.inCorso.length, 'progetto', 'progetti') + ' in raccolta</small></span><strong>' + UI.euro(uscite) + '</strong></header>' +
+      '</details>' +
+      '<details class="bil-col uscite" data-sez="top-uscite"' + (sezioniAperte['top-uscite'] ? ' open' : '') + '>' +
+        '<summary><header><span class="ico">' + OUT + '</span><span class="tit">Uscite<small>costo stimato · ' + plurale(t.inCorso.length, 'progetto', 'progetti') + ' in raccolta · ' + pctBl + '% bloccato</small></span><strong>' + UI.euro(uscite) + '</strong>' +
+          '<span class="freccia" aria-hidden="true">›</span></header></summary>' +
         '<div class="traccia-wrap" style="width:' + w(uscite) + '">' +
           '<div class="bil-bar traccia"><span class="s pieno" style="width:' + pctBl + '%" title="' + esc('Bloccati: ' + UI.euro(t.bloccato)) + '"></span></div>' +
           checkpoint(t.inCorso, uscite) +
         '</div>' +
         '<p class="rapporto"><b>' + UI.euro(t.bloccato) + '</b> bloccati / ' + UI.euro(uscite) + ' da bloccare per i progetti <span class="pct">' + pctBl + '%</span></p>' +
-      '</div>' +
+      '</details>' +
       '<div class="bil-saldo ' + (ok ? 'ok' : 'ko') + '">' +
         '<span class="lab">Balance<small>totale futuro − uscite</small></span>' +
         '<span class="pill"><i aria-hidden="true">' + (ok ? '✓' : '!') + '</i>' + (balance > 0.005 ? '+' : balance < -0.005 ? '−' : '') + UI.euro(Math.abs(balance)) + '</span>' +
       '</div>' +
     '</section>' +
-    '<button type="button" class="immobilizzato" id="apri-immob">' +
+    '<details class="immobilizzato" data-sez="top-immob"' + (sezioniAperte['top-immob'] ? ' open' : '') + '><summary>' +
       '<span class="im-icona" aria-hidden="true"><svg viewBox="0 0 24 24" width="22" height="22"><path d="M3 10.5 12 4l9 6.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg></span>' +
       '<span class="im-testo"><span>Immobilizzato · beni della società</span><strong>' + UI.euro(immob) + '</strong>' +
         '<small>' + (chiusi.length ? plurale(chiusi.length, 'progetto chiuso', 'progetti chiusi') : 'nessun progetto chiuso') + '</small></span>' +
-      '<span class="im-cta">Vedi ›</span>' +
-    '</button>';
+      '<span class="freccia" aria-hidden="true">›</span></summary>' +
+      '<div class="im-corpo">' + (chiusi.length ?
+        '<ul class="elenco">' + chiusi.slice().sort(function (a, b) { return String(b.chiusoIl || '').localeCompare(String(a.chiusoIl || '')); }).map(function (x) {
+          return '<li><span><a href="#/progetti/' + esc(x.id) + '">' + esc(x.titolo) + '</a>' +
+            '<span class="sotto-voce">chiuso il ' + esc(x.chiusoIl ? UI.data(x.chiusoIl) : '—') + '</span></span><b>' + UI.euro(x.totale) + '</b></li>';
+        }).join('') + '</ul>'
+        : '<p class="muted small">Nessun progetto chiuso. Quando un progetto viene chiuso, il suo valore finisce qui.</p>') +
+      '</div></details>';
   }
 
   // sigla: iniziali delle prime 3 parole + ultimo carattere ("Valtinsu EM5 Ultra #1" → VEU1)
@@ -125,26 +133,7 @@ window.Cassa = (function () {
     return '<div class="checkpoint r' + righe + '">' + html + '</div>';
   }
 
-  function apriImmobilizzato(t) {
-    var chiusi = t.fatti.filter(function (x) { return x.stato === 'chiuso'; })
-      .sort(function (a, b) { return String(b.chiusoIl || '').localeCompare(String(a.chiusoIl || '')); });
-    var w = document.createElement('div');
-    w.className = 'modal-bg';
-    w.innerHTML = '<div class="modal" role="dialog" aria-modal="true" aria-label="Immobilizzato">' +
-      '<h2>Immobilizzato</h2>' +
-      (chiusi.length ?
-        '<ul class="elenco">' + chiusi.map(function (x) {
-          return '<li><span><a href="#/progetti/' + esc(x.id) + '" data-chiudi>' + esc(x.titolo) + '</a>' +
-            '<span class="sotto-voce">chiuso il ' + esc(x.chiusoIl ? UI.data(x.chiusoIl) : '—') + '</span></span><b>' + UI.euro(x.totale) + '</b></li>';
-        }).join('') + '</ul>' +
-        '<p class="anteprima">Totale: <b>' + UI.euro(chiusi.reduce(function (s, x) { return s + num(x.totale); }, 0)) + '</b></p>'
-        : '<p class="muted">Nessun progetto chiuso. Quando l\'admin chiude un progetto, il suo valore finisce qui.</p>') +
-      '<div class="azioni"><button type="button" class="btn" data-a="no">Chiudi</button></div></div>';
-    document.body.appendChild(w);
-    w.addEventListener('click', function (e) {
-      if (e.target === w || (e.target.getAttribute && e.target.getAttribute('data-a') === 'no') || e.target.hasAttribute('data-chiudi')) w.remove();
-    });
-  }
+
 
   function mostra(view, ctx) {
     view.innerHTML = UI.caricamento();
@@ -208,7 +197,7 @@ window.Cassa = (function () {
       view.querySelectorAll('details.rata').forEach(function (d) {
         d.addEventListener('toggle', function () { rateAperte[d.getAttribute('data-rata')] = d.open; });
       });
-      view.querySelectorAll('.sezione-cassa').forEach(function (d) {
+      view.querySelectorAll('.sezione-cassa, details.bil-col, details.immobilizzato').forEach(function (d) {
         d.addEventListener('toggle', function () { sezioniAperte[d.getAttribute('data-sez')] = d.open; });
       });
       view.querySelectorAll('[data-modp]').forEach(function (bt) {
@@ -226,7 +215,7 @@ window.Cassa = (function () {
         });
       });
       collegaPagamenti(view, c.rate, ctx, function () { mostra(view, ctx); });
-      view.querySelector('#apri-immob').addEventListener('click', function () { apriImmobilizzato(t); });
+
       view.querySelectorAll('[data-vis]').forEach(function (bt) {
         bt.addEventListener('click', function () {
           var v = bt.getAttribute('data-vis').split('|');

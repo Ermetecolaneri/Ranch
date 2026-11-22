@@ -805,3 +805,14 @@ h2.primo { margin-top: 0; }
 .recap-joint { margin-top: 10px; border-top: 1px solid var(--line); padding-top: 8px; }
 .recap-joint summary { cursor: pointer; font-size: 14px; font-weight: 600; color: var(--accent-ink); }
 .recap-joint .tabella-wrap { margin-top: 8px; }
+
+/* box in alto della cassa: collassabili */
+details.bil-col > summary { list-style: none; cursor: pointer; }
+details.bil-col > summary::-webkit-details-marker { display: none; }
+details.bil-col header .freccia, details.immobilizzato .freccia { font-size: 22px; line-height: 1; color: var(--muted); transition: transform .2s; flex: none; }
+details.bil-col[open] header .freccia, details.immobilizzato[open] .freccia { transform: rotate(90deg); }
+details.bil-col:not([open]) { padding-bottom: 16px; }
+details.immobilizzato { display: block; padding: 0; }
+details.immobilizzato > summary { display: flex; align-items: center; gap: 12px; padding: 12px 14px; cursor: pointer; list-style: none; }
+details.immobilizzato > summary::-webkit-details-marker { display: none; }
+.im-corpo { padding: 0 14px 10px; background: var(--card); border-top: 1px solid var(--line); border-radius: 0 0 14px 14px; }
