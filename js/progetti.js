@@ -38,7 +38,7 @@ window.Progetti = (function () {
     RanchAPI.getProgetti(ctx.k).then(function (d) {
       // in ordine di completamento: prima i più vicini al 100%
       function pct(p) { return p.totale > 0 ? Number(p.raccolto) / Number(p.totale) : 0; }
-      d.progetti.sort(function (a, b) { return (pct(b) - pct(a)) || String(a.scadenza).localeCompare(String(b.scadenza)); });
+      d.progetti.sort(function (a, b) { return (pct(b) - pct(a)) || String(a.scadenza).localeCompare(String(b.scadenza)) || a.titolo.localeCompare(b.titolo, 'it'); });
       // il più amato (più cuori, almeno uno) si accende
       var maxCuori = d.progetti.reduce(function (m, p) { return Math.max(m, Number(p.cuori) || 0); }, 0);
       var amato = maxCuori > 0 ? d.progetti.filter(function (p) { return Number(p.cuori) === maxCuori; })[0] : null;

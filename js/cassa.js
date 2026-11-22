@@ -25,7 +25,7 @@ window.Cassa = (function () {
     var fatti = c.progetti.filter(realizzato), inCorso = c.progetti.filter(function (x) { return x.stato === 'raccolta'; });
     inCorso.sort(function (a, b) {
       var pa = a.totale > 0 ? num(a.raccolto) / num(a.totale) : 0, pb = b.totale > 0 ? num(b.raccolto) / num(b.totale) : 0;
-      return (pb - pa) || String(a.scadenza).localeCompare(String(b.scadenza));
+      return (pb - pa) || String(a.scadenza).localeCompare(String(b.scadenza)) || a.titolo.localeCompare(b.titolo, 'it');
     });
     fatti.forEach(function (x) {
       var m = mese(String(x.eseguitoIl || x.scadenza).slice(0, 7));
