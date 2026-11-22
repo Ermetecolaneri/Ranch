@@ -538,3 +538,10 @@ h2.primo { margin-top: 0; }
 .rata.nascosta, .rate-socio li.nascosta { opacity: .45; }
 .rata.nascosta summary { cursor: pointer; }
 .rata-admin { display: flex; gap: 8px; flex-wrap: wrap; }
+
+/* swipe tra le sezioni */
+@keyframes entra-dx { from { opacity: 0; transform: translateX(28px); } to { opacity: 1; transform: none; } }
+@keyframes entra-sx { from { opacity: 0; transform: translateX(-28px); } to { opacity: 1; transform: none; } }
+.view.entra-dx { animation: entra-dx .22s ease-out; }
+.view.entra-sx { animation: entra-sx .22s ease-out; }
+@media (prefers-reduced-motion: reduce) { .view.entra-dx, .view.entra-sx { animation: none; } }

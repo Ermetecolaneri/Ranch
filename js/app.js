@@ -44,6 +44,11 @@
       if (a.getAttribute('data-sec') === sez) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
     });
     window.scrollTo(0, 0);
+    var attiva = document.querySelector('#tabs a.attiva');
+    if (attiva && attiva.scrollIntoView) attiva.scrollIntoView({ block: 'nearest', inline: 'center' });
+    var entra = view.getAttribute('data-entra');
+    view.classList.remove('entra-dx', 'entra-sx');
+    if (entra) { void view.offsetWidth; view.classList.add('entra-' + entra); view.removeAttribute('data-entra'); }
     if (sez === 'soci') {
       if (parti[1]) Soci.scheda(view, decodeURIComponent(parti[1]), ctx);
       else Soci.lista(view, ctx);
@@ -63,6 +68,37 @@
       location.hash = '#/soci';
     }
   }
+
+  // ---------- swipe a destra / sinistra per passare tra le sezioni ----------
+  var SEZIONI = ['soci', 'progetti', 'eventi', 'cassa', 'admin'];
+  var tocco = null;
+  function scorreInOrizzontale(el) {
+    for (; el && el !== document.body; el = el.parentElement) {
+      if (el.matches && el.matches('input, textarea, select, .modal-bg, canvas, svg')) return true;
+      var st = getComputedStyle(el);
+      if ((st.overflowX === 'auto' || st.overflowX === 'scroll') && el.scrollWidth > el.clientWidth + 2) return true;
+    }
+    return false;
+  }
+  document.addEventListener('touchstart', function (e) {
+    tocco = null;
+    if (e.touches.length !== 1 || document.querySelector('.modal-bg') || scorreInOrizzontale(e.target)) return;
+    tocco = { x: e.touches[0].clientX, y: e.touches[0].clientY, t: Date.now() };
+  }, { passive: true });
+  document.addEventListener('touchend', function (e) {
+    if (!tocco) return;
+    var dx = e.changedTouches[0].clientX - tocco.x, dy = e.changedTouches[0].clientY - tocco.y, dt = Date.now() - tocco.t;
+    tocco = null;
+    if (dt > 700 || Math.abs(dx) < 70 || Math.abs(dx) < Math.abs(dy) * 1.8) return;
+    var elenco = SEZIONI.filter(function (s) { return s !== 'admin' || (ctx.me && ctx.me.admin); });
+    var attuale = (location.hash.replace(/^#\/?/, '') || 'soci').split('/')[0];
+    var i = elenco.indexOf(attuale);
+    if (i < 0) return;
+    var j = i + (dx < 0 ? 1 : -1);
+    if (j < 0 || j >= elenco.length) return;
+    view.setAttribute('data-entra', dx < 0 ? 'dx' : 'sx');
+    location.hash = '#/' + elenco[j];
+  }, { passive: true });
 
   if (RanchAPI.demo) document.getElementById('demo-banner').hidden = false;
   window.addEventListener('hashchange', route);
