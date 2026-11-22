@@ -24,8 +24,11 @@ window.Soci = (function () {
 
   function scheda(view, id, ctx) {
     view.innerHTML = UI.caricamento();
-    RanchAPI.getSocio(id).then(function (d) {
-      var s = d.socio;
+    Promise.all([RanchAPI.getSocio(id), RanchAPI.getRateSocio(id).catch(function () { return []; })]).then(function (res) {
+      var d = res[0], s = d.socio, rate = res[1];
+      var admin = !!(ctx.me && ctx.me.admin);
+      var pendenti = rate.filter(function (r) { return !r.pagataIl; }), pagate = rate.filter(function (r) { return r.pagataIl; });
+      var oggiIso = new Date().toISOString().slice(0, 10);
       var mia = ctx.me && ctx.me.id === s.id;
       view.innerHTML =
         '<a class="indietro" href="#/soci">← Tutti i soci</a>' +
@@ -43,6 +46,24 @@ window.Soci = (function () {
             '<div class="metrica"><span>Credito disponibile</span><strong>' + UI.euro(s.credito) + '</strong></div>' +
             '<div class="metrica"><span>Totale investito</span><strong>' + UI.euro(s.investito) + '</strong></div>' +
           '</div>' +
+          (rate.length ?
+            '<h2>Rate</h2>' +
+            (pendenti.length ?
+              '<ul class="elenco rate-socio">' + pendenti.map(function (r) {
+                return '<li><span><b>' + esc(r.titolo) + '</b><span class="sotto-voce">scade ' + esc(UI.data(r.scadenza)) +
+                  (r.scadenza < oggiIso ? ' · <span class="neg">scaduta</span>' : '') + '</span></span>' +
+                  '<span class="rata-azione"><b>' + UI.euro(r.importo) + '</b>' +
+                  (mia || admin ? '<button type="button" class="btn primario piccolo" data-paga="' + esc(r.id) + '|' + esc(s.id) + '">' + (mia ? 'Pagata' : 'Segna pagata') + '</button>' : '') +
+                  '</span></li>';
+              }).join('') + '</ul>' +
+              '<p class="muted small">Da pagare: <b>' + UI.euro(pendenti.reduce(function (t, r) { return t + Number(r.importo); }, 0)) + '</b></p>'
+              : '<p class="muted">Tutte le rate sono pagate. ✓</p>') +
+            (pagate.length ?
+              '<details class="rate-pagate"><summary>' + pagate.length + (pagate.length === 1 ? ' rata pagata' : ' rate pagate') + '</summary><ul class="elenco">' +
+              pagate.map(function (r) {
+                return '<li><span>' + esc(r.titolo) + '<span class="sotto-voce pos">✓ pagata il ' + esc(UI.data(r.pagataIl)) + '</span></span><b>' + UI.euro(r.importo) + '</b></li>';
+              }).join('') + '</ul></details>' : '')
+            : '') +
           '<h2>Progetti finanziati</h2>' +
           (d.progetti.length ?
             '<ul class="elenco">' + d.progetti.map(function (p) {
@@ -60,6 +81,9 @@ window.Soci = (function () {
             : '<p class="muted">Nessun movimento.</p>') +
         '</section>';
 
+      Cassa.collegaPagamenti(view, rate.map(function (r) {
+        return { id: r.id, titolo: r.titolo, importo: r.importo, soci: [{ id: s.id, nome: s.nome, pagataIl: r.pagataIl }] };
+      }), ctx, function () { scheda(view, id, ctx); });
       if (mia) {
         view.querySelector('#modifica').addEventListener('click', function () {
           modificaProfilo(s, ctx, function () { scheda(view, id, ctx); });

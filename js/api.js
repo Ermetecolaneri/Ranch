@@ -44,12 +44,19 @@
   // ---------- modalità demo (stesse regole del backend) ----------
   var D = window.RANCH_DEMO;
   if (D && !D.cuori) D.cuori = { p01: ['s01', 's04', 's07'], p02: ['s03'] };
-  if (D && !D.piano) D.piano = { titolo: '4 moto in 8', soci: 8, aggiornatoIl: '2026-11-22T01:00:00',
-    note: 'Moto da 1.400 €. Ingresso in due metà (nov–dic) che compra la prima coppia a dicembre; rate gen–apr per la seconda coppia ad aprile.',
-    rate: [{ mese: '2026-11-01', voce: 'Ingresso (1/2)', quotaMoto: 175, quotaCassa: 0 }, { mese: '2026-12-01', voce: 'Ingresso (2/2)', quotaMoto: 175, quotaCassa: 0 },
-           { mese: '2027-01-01', voce: 'Rata', quotaMoto: 87.5, quotaCassa: 15.625 }, { mese: '2027-02-01', voce: 'Rata', quotaMoto: 87.5, quotaCassa: 15.625 },
-           { mese: '2027-03-01', voce: 'Rata', quotaMoto: 87.5, quotaCassa: 15.625 }, { mese: '2027-04-01', voce: 'Rata', quotaMoto: 87.5, quotaCassa: 15.625 }],
-    uscite: [] };
+  if (D && !D.rate) {
+    D.rate = [
+      { id: 'r01', titolo: 'Quota dicembre', importo: 25, scadenza: '2026-12-31', soci: {} },
+      { id: 'r02', titolo: 'Quota gennaio', importo: 25, scadenza: '2027-01-31', soci: {} } ];
+    D.soci.filter(function (x) { return x.attivo; }).forEach(function (x, i) {
+      D.rate.forEach(function (r) { r.soci[x.id] = null; });
+      if (i < 3) {
+        var mid = 'mr' + i, d = '2026-11-2' + i + 'T09:00:00';
+        D.movimenti.push({ id: mid, data: d, socio: x.id, tipo: 'accredito', importo: 25, progetto: '', quote: 0, causale: 'Rata: Quota dicembre', fattoDa: 'socio' });
+        D.rate[0].soci[x.id] = d;
+      }
+    });
+  }
   if (D && !D.eventi) D.eventi = [
     { id: 'e01', titolo: 'Gara sociale d\'inverno', descrizione: 'Tre manche sul tracciato completo, poi pranzo tutti insieme.', foto: '',
       stato: 'da_programmare', dataInizio: null, dataFine: null, creatoIl: '2026-11-10T10:00:00', date: [
@@ -214,12 +221,14 @@
       if ((stato === 'sviluppo' || stato === 'chiuso') && manc > 0)
         return rifiuto('Per passare in esecuzione il progetto deve essere finanziato al 100%: ' + (manc === 1 ? 'manca 1 quota' : 'mancano ' + manc + ' quote') + ' (' + UI.euro(manc * p.costoQuota) + ').');
       p.stato = stato;
+      p.eseguitoIl = stato === 'raccolta' ? null : (p.eseguitoIl || new Date().toISOString());
       return attesa(progettoPubblico(p));
     },
     eliminaProgetto: function (k, id) {
       var s = perCodice(k), p = trovaProgetto(id);
       if (!s || !s.admin) return rifiuto('Solo l\'admin può eliminare un progetto.');
       if (!p) return rifiuto('Progetto non trovato.');
+      if (p.stato === 'sviluppo' || p.stato === 'chiuso') return rifiuto('Il progetto è già realizzato e pagato: riportalo prima in raccolta per eliminarlo e rimborsare i soci.');
       var per = {}, n = 0, tot = 0;
       D.movimenti.filter(function (m) { return m.progetto === id; }).forEach(function (m) {
         var x = per[m.socio] || (per[m.socio] = { q: 0, i: 0 }); x.q += m.quote; x.i -= m.importo;
@@ -262,28 +271,84 @@
         raccolta: Object.keys(giorni).sort().map(function (g) { return { giorno: g, importo: giorni[g] }; }) });
     },
 
-    // ----- piano di cassa (demo) -----
-    getPiano: function () {
+    // ----- cassa e rate (demo) -----
+    getCassa: function () {
+      var ent = {};
+      D.movimenti.forEach(function (m) {
+        if (m.tipo !== 'accredito' && m.tipo !== 'addebito') return;
+        var k = String(m.data).slice(0, 7) + '|' + m.causale, e = ent[k] || (ent[k] = { mese: String(m.data).slice(0, 7), causale: m.causale, importo: 0, soci: 0 });
+        e.importo += m.importo; e.soci++;
+      });
       var prog = D.progetti.filter(function (x) { return x.stato !== 'eliminato'; }).map(function (x) {
-        var pp = progettoPubblico(x);
-        return { id: x.id, titolo: x.titolo, descrizione: x.descrizione, stato: x.stato, scadenza: x.scadenza, quoteTotali: x.quoteTotali,
-                 costoQuota: x.costoQuota, totale: pp.totale, raccolto: pp.raccolto, quoteVendute: pp.quoteVendute };
+        var pp = progettoPubblico(x), sost = {};
+        D.movimenti.forEach(function (m) { if (m.progetto === x.id && m.tipo === 'acquisto') sost[m.socio] = 1; });
+        return { id: x.id, titolo: x.titolo, descrizione: x.descrizione, stato: x.stato, scadenza: x.scadenza, eseguitoIl: x.eseguitoIl || null,
+                 quoteTotali: x.quoteTotali, costoQuota: x.costoQuota, totale: pp.totale, raccolto: pp.raccolto, quoteVendute: pp.quoteVendute,
+                 sostenitori: Object.keys(sost).length };
       }).sort(function (a, b) { return a.scadenza < b.scadenza ? -1 : 1; });
-      var vers = 0, cred = 0;
-      D.movimenti.forEach(function (m) { cred += m.importo; if (m.tipo === 'accredito' || m.tipo === 'addebito') vers += m.importo; });
-      var es = prog.filter(function (x) { return x.stato === 'sviluppo' || x.stato === 'chiuso'; });
-      return attesa(Object.assign({}, D.piano, { progetti: prog, reale: {
-        versato: vers, creditoLibero: cred,
-        quoteAperte: prog.filter(function (x) { return x.stato === 'raccolta'; }).reduce(function (t, x) { return t + x.raccolto; }, 0),
-        raccoltoEsecuzione: es.reduce(function (t, x) { return t + x.raccolto; }, 0),
-        speso: es.reduce(function (t, x) { return t + x.totale; }, 0) } }));
+      return attesa({ rate: D.rate.slice().sort(function (a, b) { return a.scadenza < b.scadenza ? -1 : 1; }).map(rataPubblica),
+        entrate: Object.keys(ent).sort().map(function (k) { return ent[k]; }), progetti: prog,
+        creditoLibero: D.movimenti.reduce(function (t, m) { return t + m.importo; }, 0) });
     },
-    adminPianoSalva: function (k, d) {
+    getRateSocio: function (id) {
+      return attesa(D.rate.filter(function (r) { return id in r.soci; }).map(function (r) {
+        return { id: r.id, titolo: r.titolo, importo: r.importo, scadenza: r.scadenza, pagataIl: r.soci[id] };
+      }).sort(function (a, b) { return (!!a.pagataIl - !!b.pagataIl) || (a.scadenza < b.scadenza ? -1 : 1); }));
+    },
+    rataPaga: function (k, idr, ids) {
+      var s = perCodice(k); if (!s) return rifiuto('Link personale non valido.');
+      if (s.id !== ids && !s.admin) return rifiuto('Puoi segnare come pagate solo le tue rate.');
+      var r = D.rate.filter(function (x) { return x.id === idr; })[0];
+      if (!r) return rifiuto('Rata non trovata.');
+      if (!(ids in r.soci)) return rifiuto('Questa rata non è assegnata a questo socio.');
+      if (r.soci[ids]) return rifiuto('Questa rata è già segnata come pagata.');
+      r.soci[ids] = new Date().toISOString();
+      D.movimenti.push({ id: 'm' + Date.now(), data: r.soci[ids], socio: ids, tipo: 'accredito', importo: r.importo, progetto: '', quote: 0,
+                         causale: 'Rata: ' + r.titolo, fattoDa: s.id === ids ? 'socio' : 'admin' });
+      return attesa({ ok: true, importo: r.importo });
+    },
+    adminRataAnnulla: function (k, idr, ids) {
       var a = perCodice(k); if (!a || !a.admin) return rifiuto('Funzione riservata all\'admin.');
-      D.piano = { titolo: d.titolo, soci: d.soci, note: d.note, aggiornatoIl: new Date().toISOString(),
-        rate: d.rate.slice().sort(function (x, y) { return x.mese < y.mese ? -1 : 1; }),
-        uscite: d.uscite.slice().sort(function (x, y) { return x.mese < y.mese ? -1 : 1; }) };
-      return attesa(D.piano);
+      var r = D.rate.filter(function (x) { return x.id === idr; })[0];
+      if (!r) return rifiuto('Rata non trovata.');
+      if (!r.soci[ids]) return rifiuto('Questa rata non risulta pagata.');
+      var cred = saldi(D.movimenti)[ids], c = cred ? cred.credito : 0;
+      if (c < r.importo) return rifiuto(D.soci.filter(function (x) { return x.id === ids; })[0].nome + ' ha già usato questi soldi per comprare quote (credito libero ' + UI.euro(c) + '): prima storna gli acquisti.');
+      D.movimenti.push({ id: 'm' + Date.now(), data: new Date().toISOString(), socio: ids, tipo: 'addebito', importo: -r.importo, progetto: '', quote: 0,
+                         causale: 'Annullata rata: ' + r.titolo, fattoDa: 'admin' });
+      r.soci[ids] = null;
+      return attesa({ ok: true });
+    },
+    adminRataSalva: function (k, d) {
+      var a = perCodice(k); if (!a || !a.admin) return rifiuto('Funzione riservata all\'admin.');
+      if (!String(d.titolo || '').trim()) return rifiuto('Scrivi il nome della rata.');
+      if (!(Number(d.importo) > 0)) return rifiuto('Importo non valido.');
+      if (!d.scadenza) return rifiuto('Scegli la scadenza.');
+      if (!d.soci || !d.soci.length) return rifiuto('Scegli almeno un socio.');
+      var r;
+      if (d.id) {
+        r = D.rate.filter(function (x) { return x.id === d.id; })[0];
+        if (!r) return rifiuto('Rata non trovata.');
+        var pag = Object.keys(r.soci).filter(function (x) { return r.soci[x]; });
+        if (pag.length && Number(d.importo) !== r.importo) return rifiuto('L\'importo non si può cambiare: qualcuno ha già pagato questa rata.');
+        var tolti = pag.filter(function (x) { return d.soci.indexOf(x) < 0; });
+        if (tolti.length) return rifiuto('Non puoi togliere chi ha già pagato: annulla prima il pagamento.');
+        Object.keys(r.soci).forEach(function (x) { if (d.soci.indexOf(x) < 0) delete r.soci[x]; });
+      } else {
+        r = { id: 'r' + Date.now(), soci: {} };
+        D.rate.push(r);
+      }
+      r.titolo = d.titolo.trim(); r.importo = Number(d.importo); r.scadenza = d.scadenza;
+      d.soci.forEach(function (x) { if (!(x in r.soci)) r.soci[x] = null; });
+      return attesa(rataPubblica(r));
+    },
+    adminRataElimina: function (k, id) {
+      var a = perCodice(k); if (!a || !a.admin) return rifiuto('Funzione riservata all\'admin.');
+      var r = D.rate.filter(function (x) { return x.id === id; })[0];
+      if (!r) return rifiuto('Rata non trovata.');
+      if (Object.keys(r.soci).some(function (x) { return r.soci[x]; })) return rifiuto('Qualcuno ha già pagato questa rata: annulla prima i pagamenti.');
+      D.rate.splice(D.rate.indexOf(r), 1);
+      return attesa({ ok: true });
     },
 
     // ----- eventi (demo) -----
@@ -388,6 +453,8 @@
       if (!a || !a.admin) return rifiuto('Funzione riservata all\'admin.');
       var m = D.movimenti.filter(function (x) { return x.id === idm; })[0];
       if (!m || m.tipo !== 'acquisto') return rifiuto('Si possono stornare solo gli acquisti.');
+      var pm = trovaProgetto(m.progetto);
+      if (pm && (pm.stato === 'sviluppo' || pm.stato === 'chiuso')) return rifiuto('Il progetto è già realizzato e pagato: riportalo prima in raccolta per stornare.');
       var resto = m.quote + D.movimenti.filter(function (x) { return x.rif === idm; }).reduce(function (t, x) { return t + x.quote; }, 0);
       quote = Number(quote);
       if (resto <= 0) return rifiuto('Questo acquisto è già stato stornato del tutto.');
@@ -444,6 +511,12 @@
     }
   };
 
+  function rataPubblica(r) {
+    return { id: r.id, titolo: r.titolo, importo: r.importo, scadenza: r.scadenza,
+      soci: Object.keys(r.soci).map(function (id) { var x = D.soci.filter(function (y) { return y.id === id; })[0] || { nome: '?' };
+        return { id: id, nome: x.nome, foto: x.foto || '', pagataIl: r.soci[id] }; })
+        .sort(function (a, b) { return a.nome.localeCompare(b.nome, 'it'); }) };
+  }
   function oggi() { var d = new Date(); return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10); }
   function trovaProgetto(id) { return D.progetti.filter(function (p) { return p.id === id && p.stato !== 'eliminato'; })[0]; }
   function quoteVendute(id) { return D.movimenti.filter(function (m) { return m.progetto === id; }).reduce(function (t, m) { return t + m.quote; }, 0); }
@@ -525,10 +598,16 @@
     },
     cuore: function (k, id) { return rpc('cuore', { p_k: k, p_id: id }); },
     getAndamento: function () { return rpc('get_andamento'); },
-    getPiano: function () { return rpc('get_piano'); },
-    adminPianoSalva: function (k, d) {
-      return rpc('admin_piano_salva', { p_k: k, p_titolo: d.titolo, p_soci: d.soci, p_note: d.note || '', p_rate: d.rate, p_uscite: d.uscite });
+    getCassa: function () {
+      return rpc('get_cassa').then(function (c) { c.rate.forEach(function (r) { r.soci.forEach(conFoto); }); return c; });
     },
+    getRateSocio: function (id) { return rpc('get_rate_socio', { p_id: id }); },
+    rataPaga: function (k, rata, socio) { return rpc('rata_paga', { p_k: k, p_rata: rata, p_socio: socio }); },
+    adminRataAnnulla: function (k, rata, socio) { return rpc('admin_rata_annulla', { p_k: k, p_rata: rata, p_socio: socio }); },
+    adminRataSalva: function (k, d) {
+      return rpc('admin_rata_salva', { p_k: k, p_id: d.id || null, p_titolo: d.titolo, p_importo: d.importo, p_scadenza: d.scadenza, p_soci: d.soci });
+    },
+    adminRataElimina: function (k, id) { return rpc('admin_rata_elimina', { p_k: k, p_id: id }); },
 
     // ----- eventi -----
     getEventi: function (k) {

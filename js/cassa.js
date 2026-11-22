@@ -1,233 +1,282 @@
-// Sezione Cassa: piano dei versamenti dei soci e flussi della società. L'admin può modificare tutto.
+// Sezione Cassa: soldi veri della società.
+//  * flusso di cassa: entrate effettive (rate pagate, accrediti) − progetti realizzati
+//  * disponibile = credito libero dei soci + quote bloccate nei progetti in raccolta
+//  * progetti in corso (quote bloccate), progetti realizzati, rate dei soci (l'admin le crea, il socio le segna pagate)
 window.Cassa = (function () {
   var esc = UI.esc;
 
-  function meseLabel(iso) {
-    return new Date(iso + 'T12:00:00').toLocaleDateString('it-IT', { month: 'short', year: '2-digit' });
+  function num(v) { return Number(v) || 0; }
+  function meseLabel(k) { // 'YYYY-MM'
+    return new Date(k + '-15T12:00:00').toLocaleDateString('it-IT', { month: 'long', year: 'numeric' });
   }
   function meseAttuale() { var d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0'); }
-  function num(v) { return Number(v) || 0; }
+  function oggi() { var d = new Date(); return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10); }
+  function realizzato(x) { return x.stato === 'sviluppo' || x.stato === 'chiuso'; }
+  function plurale(n, uno, tanti) { return n + ' ' + (n === 1 ? uno : tanti); }
 
-  // tutti i numeri del piano, calcolati dalle righe
-  function calcola(p) {
-    var perSocio = p.rate.reduce(function (t, r) { return t + num(r.quotaMoto) + num(r.quotaCassa); }, 0);
+  function calcola(c) {
     var mesi = {};
-    p.rate.forEach(function (r) {
-      var k = r.mese.slice(0, 7), m = mesi[k] || (mesi[k] = { mese: r.mese, entrate: 0, uscite: 0, voci: [] });
-      m.entrate += (num(r.quotaMoto) + num(r.quotaCassa)) * p.soci;
+    function mese(k) { return mesi[k] || (mesi[k] = { mese: k, entrate: 0, uscite: 0, voci: [] }); }
+    c.entrate.forEach(function (e) {
+      var m = mese(e.mese);
+      m.entrate += num(e.importo);
+      m.voci.push(e.causale + (e.soci > 1 ? ' ×' + e.soci : ''));
     });
-    function uscita(mese, importo, voce) {
-      var k = mese.slice(0, 7), m = mesi[k] || (mesi[k] = { mese: mese.slice(0, 7) + '-01', entrate: 0, uscite: 0, voci: [] });
-      m.uscite += num(importo);
-      m.voci.push(voce);
-    }
-    (p.progetti || []).forEach(function (x) { uscita(x.scadenza, x.totale, x.titolo); });
-    p.uscite.forEach(function (u) { uscita(u.mese, u.importo, u.voce); });
+    var fatti = c.progetti.filter(realizzato), inCorso = c.progetti.filter(function (x) { return x.stato === 'raccolta'; });
+    fatti.forEach(function (x) {
+      var m = mese(String(x.eseguitoIl || x.scadenza).slice(0, 7));
+      m.uscite += num(x.totale);
+      m.voci.push(x.titolo);
+    });
     var righe = Object.keys(mesi).sort().map(function (k) { return mesi[k]; }), saldo = 0;
     righe.forEach(function (m) { saldo += m.entrate - m.uscite; m.saldo = saldo; });
-    var entrate = righe.reduce(function (t, m) { return t + m.entrate; }, 0);
-    var uscite = righe.reduce(function (t, m) { return t + m.uscite; }, 0);
-    return { perSocio: perSocio, entrate: entrate, uscite: uscite, finale: entrate - uscite, mesi: righe,
-             negativo: righe.some(function (m) { return m.saldo < -0.005; }) };
+    var entrate = c.entrate.reduce(function (t, e) { return t + num(e.importo); }, 0);
+    var uscite = fatti.reduce(function (t, x) { return t + num(x.totale); }, 0);
+    var bloccato = inCorso.reduce(function (t, x) { return t + num(x.raccolto); }, 0);
+    var future = 0, scadute = 0, oggiIso = oggi();
+    c.rate.forEach(function (r) {
+      r.soci.forEach(function (s) {
+        if (s.pagataIl) return;
+        future += num(r.importo);
+        if (r.scadenza < oggiIso) scadute += num(r.importo);
+      });
+    });
+    var disponibile = entrate - uscite;
+    return { mesi: righe, entrate: entrate, uscite: uscite, disponibile: disponibile, bloccato: bloccato,
+             libero: num(c.creditoLibero), future: future, scadute: scadute, fatti: fatti, inCorso: inCorso,
+             quadra: Math.abs(disponibile - (num(c.creditoLibero) + bloccato)) < 0.005 };
   }
 
   function mostra(view, ctx) {
     view.innerHTML = UI.caricamento();
-    RanchAPI.getPiano().then(function (p) {
-      var c = calcola(p), ora = meseAttuale(), admin = ctx.me && ctx.me.admin;
-      var totMoto = p.rate.reduce(function (t, r) { return t + num(r.quotaMoto); }, 0);
-      var totCassa = p.rate.reduce(function (t, r) { return t + num(r.quotaCassa); }, 0);
-      var r = p.reale || { versato: 0, speso: 0, creditoLibero: 0, quoteAperte: 0, raccoltoEsecuzione: 0 };
-      var inCassa = num(r.versato) - num(r.speso);
-      var quadra = Math.abs(inCassa - (num(r.creditoLibero) + num(r.quoteAperte))) < 0.005;
+    RanchAPI.getCassa().then(function (c) {
+      var t = calcola(c), ora = meseAttuale(), admin = !!(ctx.me && ctx.me.admin), io = ctx.me && ctx.me.id;
       view.innerHTML =
-        '<h2 class="primo">Situazione reale</h2>' +
         '<div class="kpi-griglia tre">' +
-          '<div class="kpi"><span>Versato dai soci</span><strong>' + UI.euro(r.versato) + '</strong></div>' +
-          '<div class="kpi"><span>Speso (progetti in esecuzione)</span><strong>' + UI.euro(r.speso) + '</strong></div>' +
-          '<div class="kpi evidenza"><span>In cassa ora</span><strong>' + UI.euro(inCassa) + '</strong></div>' +
+          '<div class="kpi evidenza"><span>Disponibile</span><strong>' + UI.euro(t.disponibile) + '</strong></div>' +
+          '<div class="kpi"><span>Rate future</span><strong>' + UI.euro(t.future) + '</strong>' +
+            (t.scadute > 0 ? '<small class="neg">' + UI.euro(t.scadute) + ' scadute</small>' : '') + '</div>' +
+          '<div class="kpi"><span>Bloccato nei progetti</span><strong>' + UI.euro(t.bloccato) + '</strong></div>' +
         '</div>' +
-        '<p class="quadratura ' + (quadra ? 'ok' : 'ko') + '">' + (quadra ? '✓ Quadra: ' : '⚠ Non quadra: ') +
-          'in cassa ' + UI.euro(inCassa) + ' = credito libero dei soci ' + UI.euro(r.creditoLibero) + ' + quote raccolte su progetti aperti ' + UI.euro(r.quoteAperte) +
-          (quadra ? '' : ' (differenza ' + UI.euro(inCassa - num(r.creditoLibero) - num(r.quoteAperte)) + ': un progetto in esecuzione non è stato pagato tutto con le quote)') + '</p>' +
-        '<div class="piano-testa">' +
-          '<div><p class="muted small">Piano in corso</p><h1>' + esc(p.titolo) + '</h1>' +
-          '<p class="muted small">' + p.soci + ' soci' + (p.note ? ' · ' + esc(p.note) : '') + '</p></div>' +
-          (admin ? '<button type="button" class="btn primario" id="mod-piano">Modifica piano</button>' : '') +
-        '</div>' +
-        '<div class="kpi-griglia">' +
-          '<div class="kpi"><span>Versato da ogni socio</span><strong>' + UI.euro(c.perSocio) + '</strong></div>' +
-          '<div class="kpi"><span>Entrate della società</span><strong>' + UI.euro(c.entrate) + '</strong></div>' +
-          '<div class="kpi"><span>Uscite (progetti e altro)</span><strong>' + UI.euro(c.uscite) + '</strong></div>' +
-          '<div class="kpi evidenza"><span>Fondocassa a fine piano</span><strong>' + UI.euro(c.finale) + '</strong></div>' +
-        '</div>' +
-        (c.negativo ? '<p class="avviso-cassa">Attenzione: in almeno un mese il saldo della società va sotto zero.</p>' : '') +
+        '<p class="quadratura ' + (t.quadra ? 'ok' : 'ko') + '">' + (t.quadra ? '✓ Quadra: ' : '⚠ Non quadra: ') +
+          'disponibile ' + UI.euro(t.disponibile) + ' = credito libero dei soci ' + UI.euro(t.libero) +
+          ' + quote bloccate nei progetti in raccolta ' + UI.euro(t.bloccato) +
+          (t.quadra ? '' : ' (differenza ' + UI.euro(t.disponibile - t.libero - t.bloccato) + ')') + '</p>' +
 
-        '<h2>Rate per socio</h2>' +
-        '<div class="tabella-wrap"><table class="tabella">' +
-          '<thead><tr><th>Mese</th><th class="solo-largo">Voce</th><th class="n">Rata</th><th class="n">Moto</th><th class="n">Cassa</th></tr></thead><tbody>' +
-          p.rate.map(function (r) {
-            var k = r.mese.slice(0, 7);
-            return '<tr class="' + (k === ora ? 'ora' : k < ora ? 'passato' : '') + '">' +
-              '<td>' + esc(meseLabel(r.mese)) + '<span class="sotto-voce solo-stretto">' + esc(r.voce) + '</span></td>' +
-              '<td class="solo-largo">' + esc(r.voce) + '</td>' +
-              '<td class="n"><b>' + UI.euro(num(r.quotaMoto) + num(r.quotaCassa)) + '</b></td>' +
-              '<td class="n">' + UI.euro(r.quotaMoto) + '</td><td class="n">' + UI.euro(r.quotaCassa) + '</td></tr>';
-          }).join('') +
-          '</tbody><tfoot><tr><td>Totale</td><td class="solo-largo"></td><td class="n"><b>' + UI.euro(c.perSocio) + '</b></td>' +
-          '<td class="n">' + UI.euro(totMoto) + '</td><td class="n">' + UI.euro(totCassa) + '</td></tr></tfoot>' +
-        '</table></div>' +
+        '<h2>Flusso di cassa</h2>' +
+        '<p class="muted small">Solo soldi veri: entrano le rate pagate, escono i progetti realizzati (nel giorno in cui passano in esecuzione).</p>' +
+        (t.mesi.length ?
+          '<div class="tabella-wrap"><table class="tabella">' +
+            '<thead><tr><th>Mese</th><th class="n">Entrate</th><th class="n">Uscite</th><th class="n">Saldo</th></tr></thead><tbody>' +
+            t.mesi.map(function (m) {
+              return '<tr class="' + (m.mese === ora ? 'ora' : '') + '">' +
+                '<td>' + esc(meseLabel(m.mese)) + '<span class="sotto-voce">' + m.voci.map(esc).join(' · ') + '</span></td>' +
+                '<td class="n">' + (m.entrate ? UI.euro(m.entrate) : '—') + '</td>' +
+                '<td class="n">' + (m.uscite ? '−' + UI.euro(m.uscite) : '—') + '</td>' +
+                '<td class="n"><b class="' + (m.saldo < -0.005 ? 'neg' : '') + '">' + UI.euro(m.saldo) + '</b></td></tr>';
+            }).join('') +
+            '</tbody><tfoot><tr><td>Totale</td><td class="n">' + UI.euro(t.entrate) + '</td><td class="n">' + (t.uscite ? '−' + UI.euro(t.uscite) : '—') +
+            '</td><td class="n"><b>' + UI.euro(t.disponibile) + '</b></td></tr></tfoot>' +
+          '</table></div>'
+          : '<p class="muted">Nessun movimento di cassa.</p>') +
 
-        '<h2>Uscite previste: i progetti</h2>' +
-        '<p class="muted small">Ogni progetto pesa sulla cassa con il suo costo totale nel mese della scadenza. Passa in esecuzione solo quando è finanziato al 100%.</p>' +
-        '<div class="tabella-wrap"><table class="tabella">' +
-          '<thead><tr><th>Progetto</th><th class="n">Totale</th><th class="n">Raccolto</th>' + (admin ? '<th></th>' : '') + '</tr></thead><tbody>' +
-          (p.progetti || []).map(function (x) {
-            var pct = x.totale > 0 ? Math.round(num(x.raccolto) / num(x.totale) * 100) : 0;
-            return '<tr><td><a href="#/progetti/' + esc(x.id) + '">' + esc(x.titolo) + '</a>' +
-              '<span class="sotto-voce">' + esc(meseLabel(x.scadenza.slice(0, 7) + '-01')) + ' · ' + x.quoteTotali + ' × ' + UI.euro(x.costoQuota) + ' · ' +
-              (STATI[x.stato] || x.stato) + '</span></td>' +
-              '<td class="n"><b>' + UI.euro(x.totale) + '</b></td>' +
-              '<td class="n">' + UI.euro(x.raccolto) + '<span class="sotto-voce">' + pct + '%</span></td>' +
-              (admin ? '<td class="n"><button type="button" class="btn piccolo" data-modp="' + esc(x.id) + '">Modifica</button></td>' : '') + '</tr>';
-          }).join('') +
-          '</tbody><tfoot><tr><td>Totale progetti</td><td class="n"><b>' + UI.euro((p.progetti || []).reduce(function (t, x) { return t + num(x.totale); }, 0)) + '</b></td>' +
-          '<td class="n">' + UI.euro((p.progetti || []).reduce(function (t, x) { return t + num(x.raccolto); }, 0)) + '</td>' + (admin ? '<td></td>' : '') + '</tr></tfoot>' +
-        '</table></div>' +
-        (p.uscite.length ? '<p class="muted small">Altre uscite: ' + p.uscite.map(function (u) { return esc(u.voce) + ' ' + UI.euro(u.importo) + ' (' + esc(meseLabel(u.mese)) + ')'; }).join(' · ') + '</p>' : '') +
+        '<h2>Progetti in corso</h2>' +
+        '<p class="muted small">Le quote comprate restano bloccate nel progetto finché è finanziato al 100% e passa in esecuzione.</p>' +
+        (t.inCorso.length ?
+          '<div class="tabella-wrap"><table class="tabella">' +
+            '<thead><tr><th>Progetto</th><th class="n">Quote bloccate</th><th class="n">Bloccato</th>' + (admin ? '<th></th>' : '') + '</tr></thead><tbody>' +
+            t.inCorso.map(function (x) {
+              var pct = x.quoteTotali > 0 ? Math.min(100, Math.round(x.quoteVendute / x.quoteTotali * 100)) : 0;
+              return '<tr><td><a href="#/progetti/' + esc(x.id) + '">' + esc(x.titolo) + '</a>' +
+                '<span class="sotto-voce">scade ' + esc(UI.data(x.scadenza)) + ' · ' + plurale(x.sostenitori, 'sostenitore', 'sostenitori') + '</span>' +
+                '<div class="barra' + (pct >= 100 ? ' completa' : '') + '"><span style="width:' + pct + '%"></span></div></td>' +
+                '<td class="n"><b>' + x.quoteVendute + '</b> / ' + x.quoteTotali + '<span class="sotto-voce">' + pct + '%</span></td>' +
+                '<td class="n"><b>' + UI.euro(x.raccolto) + '</b><span class="sotto-voce">su ' + UI.euro(x.totale) + '</span></td>' +
+                (admin ? '<td class="n"><button type="button" class="btn piccolo" data-modp="' + esc(x.id) + '">Modifica</button></td>' : '') + '</tr>';
+            }).join('') +
+            '</tbody><tfoot><tr><td>Totale</td><td></td><td class="n"><b>' + UI.euro(t.bloccato) + '</b><span class="sotto-voce">su ' +
+              UI.euro(t.inCorso.reduce(function (s, x) { return s + num(x.totale); }, 0)) + '</span></td>' + (admin ? '<td></td>' : '') + '</tr></tfoot>' +
+          '</table></div>'
+          : '<p class="muted">Nessun progetto in raccolta.</p>') +
 
-        '<h2>Cassa della società</h2>' +
-        '<div class="tabella-wrap"><table class="tabella">' +
-          '<thead><tr><th>Mese</th><th class="n">Entrate</th><th class="n">Uscite</th><th class="n">Saldo</th></tr></thead><tbody>' +
-          c.mesi.map(function (m) {
-            var k = m.mese.slice(0, 7);
-            return '<tr class="' + (k === ora ? 'ora' : k < ora ? 'passato' : '') + '">' +
-              '<td>' + esc(meseLabel(m.mese)) + (m.voci.length ? '<span class="sotto-voce">' + m.voci.map(esc).join(' · ') + '</span>' : '') + '</td>' +
-              '<td class="n">' + (m.entrate ? UI.euro(m.entrate) : '—') + '</td>' +
-              '<td class="n">' + (m.uscite ? '−' + UI.euro(m.uscite) : '—') + '</td>' +
-              '<td class="n"><b class="' + (m.saldo < -0.005 ? 'neg' : '') + '">' + UI.euro(m.saldo) + '</b></td></tr>';
-          }).join('') +
-          '</tbody></table></div>' +
-        '<p class="muted small">Entrate = rata per socio × ' + p.soci + ' soci. Aggiornato il ' + UI.data(p.aggiornatoIl) + '.</p>';
+        '<h2>Progetti realizzati</h2>' +
+        (t.fatti.length ?
+          '<div class="tabella-wrap"><table class="tabella">' +
+            '<thead><tr><th>Progetto</th><th class="n">Pagato</th></tr></thead><tbody>' +
+            t.fatti.map(function (x) {
+              return '<tr><td><a href="#/progetti/' + esc(x.id) + '">' + esc(x.titolo) + '</a>' +
+                '<span class="sotto-voce">' + (x.stato === 'chiuso' ? 'chiuso' : 'in esecuzione') +
+                (x.eseguitoIl ? ' dal ' + esc(UI.data(x.eseguitoIl)) : '') + '</span></td>' +
+                '<td class="n"><b>' + UI.euro(x.totale) + '</b></td></tr>';
+            }).join('') +
+            '</tbody></table></div>'
+          : '<p class="muted">Ancora nessuno: un progetto esce dalla cassa quando passa in esecuzione.</p>') +
 
-      var b = view.querySelector('#mod-piano');
-      if (b) b.addEventListener('click', function () { editor(p, ctx, function () { mostra(view, ctx); }); });
+        '<div class="titolo-azione"><h2>Rate</h2>' +
+          (admin ? '<button type="button" class="btn primario piccolo" id="nuova-rata">+ Nuova rata</button>' : '') + '</div>' +
+        (c.rate.length ? '<div class="rate">' + c.rate.map(function (r) { return rataHtml(r, admin, io); }).join('') + '</div>'
+          : '<p class="muted">Nessuna rata.</p>');
+
       view.querySelectorAll('[data-modp]').forEach(function (bt) {
         bt.addEventListener('click', function () {
-          var x = p.progetti.filter(function (y) { return y.id === bt.getAttribute('data-modp'); })[0];
+          var x = c.progetti.filter(function (y) { return y.id === bt.getAttribute('data-modp'); })[0];
           modificaProgetto(x, ctx, function () { mostra(view, ctx); });
         });
       });
+      var nr = view.querySelector('#nuova-rata');
+      if (nr) nr.addEventListener('click', function () { editorRata(null, ctx, function () { mostra(view, ctx); }); });
+      view.querySelectorAll('[data-modr]').forEach(function (bt) {
+        bt.addEventListener('click', function () {
+          var r = c.rate.filter(function (y) { return y.id === bt.getAttribute('data-modr'); })[0];
+          editorRata(r, ctx, function () { mostra(view, ctx); });
+        });
+      });
+      collegaPagamenti(view, c.rate, ctx, function () { mostra(view, ctx); });
     }).catch(function (e) { view.innerHTML = UI.errore(e); });
   }
 
-  // ---------- editor del piano (admin) ----------
-  function editor(p, ctx, fatto) {
-    var rate = p.rate.map(function (r) { return { mese: r.mese.slice(0, 7), voce: r.voce, quotaMoto: num(r.quotaMoto), quotaCassa: num(r.quotaCassa) }; });
-    var uscite = p.uscite.map(function (u) { return { mese: u.mese.slice(0, 7), voce: u.voce, importo: num(u.importo) }; });
-    var wrap = document.createElement('div');
-    wrap.className = 'modal-bg';
-    wrap.innerHTML =
-      '<form class="modal largo editor-piano" role="dialog" aria-modal="true" aria-label="Modifica piano" novalidate>' +
-        '<h2>Modifica piano</h2>' +
-        '<div class="due"><label class="campo"><span>Titolo</span><input name="titolo" maxlength="80" value="' + esc(p.titolo) + '"></label>' +
-        '<label class="campo"><span>Numero di soci</span><input name="soci" type="number" inputmode="numeric" min="1" max="100" value="' + p.soci + '"></label></div>' +
-        '<label class="campo"><span>Note</span><textarea name="note" rows="2" maxlength="500">' + esc(p.note) + '</textarea></label>' +
-        '<h3>Rate per socio</h3><div id="righe-rate"></div><button type="button" class="btn piccolo" id="agg-rata">+ Aggiungi rata</button>' +
-        '<h3>Altre uscite (oltre ai progetti)</h3><div id="righe-uscite"></div><button type="button" class="btn piccolo" id="agg-uscita">+ Aggiungi uscita</button>' +
-        '<div class="riepilogo" id="riep"></div>' +
-        '<p class="errore" id="err-p" hidden></p>' +
-        '<div class="azioni"><button type="button" class="btn" data-a="no">Annulla</button><button type="submit" class="btn primario">Salva piano</button></div>' +
-      '</form>';
-    document.body.appendChild(wrap);
-    var f = wrap.querySelector('form'), err = wrap.querySelector('#err-p');
+  function rataHtml(r, admin, io) {
+    var pagati = r.soci.filter(function (s) { return s.pagataIl; }).length, n = r.soci.length;
+    var scaduta = r.scadenza < oggi() && pagati < n;
+    var mia = r.soci.filter(function (s) { return s.id === io; })[0];
+    return '<details class="rata' + (pagati === n ? ' saldata' : '') + '"' + (mia && !mia.pagataIl ? ' open' : '') + '>' +
+      '<summary><span class="rata-titolo"><b>' + esc(r.titolo) + '</b>' +
+        '<span class="sotto-voce">' + UI.euro(r.importo) + ' a testa · scade ' + esc(UI.data(r.scadenza)) +
+        (scaduta ? ' · <span class="neg">scaduta</span>' : '') + '</span></span>' +
+        '<span class="rata-stato"><b>' + pagati + '/' + n + '</b><span class="sotto-voce">' + UI.euro(pagati * num(r.importo)) + ' di ' + UI.euro(n * num(r.importo)) + '</span></span>' +
+      '</summary>' +
+      '<ul class="elenco rata-soci">' + r.soci.map(function (s) {
+        var azione = '';
+        if (!s.pagataIl && (admin || s.id === io))
+          azione = '<button type="button" class="btn primario piccolo" data-paga="' + esc(r.id) + '|' + esc(s.id) + '">' + (s.id === io ? 'L\'ho pagata' : 'Segna pagata') + '</button>';
+        else if (s.pagataIl && admin)
+          azione = '<button type="button" class="btn piccolo" data-annulla="' + esc(r.id) + '|' + esc(s.id) + '">Annulla</button>';
+        return '<li><span class="rata-socio">' + UI.avatar(s, 28) + '<span>' + esc(s.nome) +
+          '<span class="sotto-voce">' + (s.pagataIl ? '<span class="pos">✓ pagata il ' + esc(UI.data(s.pagataIl)) + '</span>' : 'da pagare') + '</span></span></span>' +
+          azione + '</li>';
+      }).join('') + '</ul>' +
+      (admin ? '<div class="rata-admin"><button type="button" class="btn piccolo" data-modr="' + esc(r.id) + '">Modifica rata</button></div>' : '') +
+    '</details>';
+  }
 
-    function disegna() {
-      wrap.querySelector('#righe-rate').innerHTML = rate.map(function (r, i) {
-        return '<div class="riga-piano">' +
-          '<label class="mese"><span>Mese</span><input type="month" data-r="' + i + '" data-k="mese" value="' + esc(r.mese) + '"></label>' +
-          '<label class="voce"><span>Voce</span><input data-r="' + i + '" data-k="voce" maxlength="60" value="' + esc(r.voce) + '"></label>' +
-          '<label><span>Moto €</span><input type="number" inputmode="decimal" step="0.01" min="0" data-r="' + i + '" data-k="quotaMoto" value="' + r.quotaMoto + '"></label>' +
-          '<label><span>Cassa €</span><input type="number" inputmode="decimal" step="0.01" min="0" data-r="' + i + '" data-k="quotaCassa" value="' + r.quotaCassa + '"></label>' +
-          '<button type="button" class="btn piccolo togli" data-via-r="' + i + '" aria-label="Togli rata">×</button></div>';
-      }).join('');
-      wrap.querySelector('#righe-uscite').innerHTML = uscite.length ? uscite.map(function (u, i) {
-        return '<div class="riga-piano uscita">' +
-          '<label class="mese"><span>Mese</span><input type="month" data-u="' + i + '" data-k="mese" value="' + esc(u.mese) + '"></label>' +
-          '<label class="voce"><span>Voce</span><input data-u="' + i + '" data-k="voce" maxlength="60" value="' + esc(u.voce) + '"></label>' +
-          '<label><span>Importo €</span><input type="number" inputmode="decimal" step="0.01" min="0" data-u="' + i + '" data-k="importo" value="' + u.importo + '"></label>' +
-          '<button type="button" class="btn piccolo togli" data-via-u="' + i + '" aria-label="Togli uscita">×</button></div>';
-      }).join('') : '<p class="muted small">Nessuna uscita.</p>';
-      riepilogo();
+  // pulsanti "pagata" / "annulla" (usati sia in Cassa sia nella scheda del socio)
+  function collegaPagamenti(root, rate, ctx, fatto) {
+    function trova(v) {
+      var p = v.split('|'), r = rate.filter(function (x) { return x.id === p[0]; })[0];
+      var s = r && (r.soci ? r.soci.filter(function (y) { return y.id === p[1]; })[0] : null);
+      return { rata: p[0], socio: p[1], r: r, s: s };
     }
-    function riepilogo() {
-      var soci = Number(f.soci.value) || 0;
-      var c = calcola({ soci: soci, rate: rate.filter(function (r) { return r.mese; }).map(function (r) { return { mese: r.mese + '-01', quotaMoto: r.quotaMoto, quotaCassa: r.quotaCassa }; }),
-                        uscite: uscite.filter(function (u) { return u.mese; }).map(function (u) { return { mese: u.mese + '-01', importo: u.importo, voce: u.voce }; }) });
-      wrap.querySelector('#riep').innerHTML = 'Ogni socio versa <b>' + UI.euro(c.perSocio) + '</b> · entrate ' + UI.euro(c.entrate) +
-        ' · uscite ' + UI.euro(c.uscite) + ' · fondocassa finale <b class="' + (c.finale < 0 ? 'neg' : '') + '">' + UI.euro(c.finale) + '</b>' +
-        (c.negativo ? '<br><span class="neg">In almeno un mese il saldo va sotto zero.</span>' : '');
-    }
-    disegna();
-
-    f.addEventListener('input', function (e) {
-      err.hidden = true;
-      var t = e.target, k = t.getAttribute('data-k');
-      if (t.hasAttribute('data-r')) rate[Number(t.getAttribute('data-r'))][k] = k === 'mese' || k === 'voce' ? t.value : num(t.value);
-      if (t.hasAttribute('data-u')) uscite[Number(t.getAttribute('data-u'))][k] = k === 'mese' || k === 'voce' ? t.value : num(t.value);
-      riepilogo();
+    root.querySelectorAll('[data-paga]').forEach(function (bt) {
+      bt.addEventListener('click', function () {
+        var x = trova(bt.getAttribute('data-paga'));
+        var mia = ctx.me && ctx.me.id === x.socio;
+        conferma(mia ? 'Hai pagato questa rata?' : 'Segnare la rata come pagata?',
+          '<b>' + esc(x.r.titolo) + '</b>, ' + UI.euro(x.r.importo) + (mia ? '' : ' di ' + esc(x.s ? x.s.nome : '')) +
+          '. L\'importo entra in cassa e diventa credito ' + (mia ? 'tuo' : 'del socio') + ' da usare sui progetti.',
+          'Sì, pagata', function () {
+            bt.disabled = true;
+            RanchAPI.rataPaga(ctx.k, x.rata, x.socio).then(function () {
+              UI.toast('Rata pagata: +' + UI.euro(x.r.importo) + ' di credito');
+              if (mia && ctx.ricaricaMe) ctx.ricaricaMe();
+              fatto();
+            }).catch(function (e) { bt.disabled = false; UI.toast(e.message); });
+          });
+      });
     });
-    wrap.addEventListener('click', function (e) {
-      var t = e.target;
-      if (t === wrap || t.getAttribute('data-a') === 'no') { wrap.remove(); return; }
-      if (t.id === 'agg-rata') {
-        var ultima = rate[rate.length - 1], m = ultima && ultima.mese ? prossimoMese(ultima.mese) : meseAttuale();
-        rate.push({ mese: m, voce: 'Rata', quotaMoto: ultima ? ultima.quotaMoto : 0, quotaCassa: ultima ? ultima.quotaCassa : 0 });
-        disegna();
-      }
-      if (t.id === 'agg-uscita') { uscite.push({ mese: meseAttuale(), voce: '', importo: 0 }); disegna(); }
-      if (t.hasAttribute('data-via-r')) { rate.splice(Number(t.getAttribute('data-via-r')), 1); disegna(); }
-      if (t.hasAttribute('data-via-u')) { uscite.splice(Number(t.getAttribute('data-via-u')), 1); disegna(); }
-    });
-    f.addEventListener('submit', function (e) {
-      e.preventDefault();
-      var msg = !f.titolo.value.trim() ? 'Scrivi un titolo per il piano.'
-        : !(Number(f.soci.value) >= 1) ? 'Indica il numero di soci.'
-        : !rate.length ? 'Serve almeno una rata.'
-        : rate.some(function (r) { return !r.mese; }) ? 'Ogni rata deve avere un mese.'
-        : rate.some(function (r) { return r.quotaMoto + r.quotaCassa <= 0; }) ? 'Ogni rata deve avere un importo maggiore di zero.'
-        : uscite.some(function (u) { return !u.mese || !(u.importo > 0); }) ? 'Ogni uscita deve avere mese e importo maggiore di zero.' : '';
-      if (msg) { err.textContent = msg; err.hidden = false; return; }
-      var btn = f.querySelector('button[type=submit]');
-      btn.disabled = true; btn.textContent = 'Salvataggio…';
-      RanchAPI.adminPianoSalva(ctx.k, {
-        titolo: f.titolo.value.trim(), soci: Number(f.soci.value), note: f.note.value.trim(),
-        rate: rate.map(function (r) { return { mese: r.mese + '-01', voce: r.voce, quotaMoto: r.quotaMoto, quotaCassa: r.quotaCassa }; }),
-        uscite: uscite.map(function (u) { return { mese: u.mese + '-01', voce: u.voce, importo: u.importo }; })
-      }).then(function () {
-        wrap.remove(); UI.toast('Piano salvato'); fatto();
-      }).catch(function (e2) {
-        btn.disabled = false; btn.textContent = 'Salva piano';
-        err.textContent = e2.message; err.hidden = false;
+    root.querySelectorAll('[data-annulla]').forEach(function (bt) {
+      bt.addEventListener('click', function () {
+        var x = trova(bt.getAttribute('data-annulla'));
+        conferma('Annullare il pagamento?', '<b>' + esc(x.r.titolo) + '</b> di ' + esc(x.s ? x.s.nome : '') + ' torna da pagare e gli vengono tolti ' +
+          UI.euro(x.r.importo) + ' di credito.', 'Annulla pagamento', function () {
+            bt.disabled = true;
+            RanchAPI.adminRataAnnulla(ctx.k, x.rata, x.socio).then(function () {
+              UI.toast('Pagamento annullato'); fatto();
+            }).catch(function (e) { bt.disabled = false; UI.toast(e.message); });
+          }, true);
       });
     });
   }
-  var STATI = { raccolta: 'in raccolta', sviluppo: 'in esecuzione', chiuso: 'chiuso' };
 
-  // l'admin cambia quote, costo quota e scadenza di un progetto direttamente dalla cassa
+  // ---------- nuova / modifica rata (admin) ----------
+  function editorRata(r, ctx, fatto) {
+    RanchAPI.getSoci().then(function (d) {
+      var pagati = {}, scelti = {};
+      if (r) r.soci.forEach(function (s) { scelti[s.id] = true; if (s.pagataIl) pagati[s.id] = true; });
+      else d.soci.forEach(function (s) { scelti[s.id] = true; });
+      var soci = d.soci.slice();
+      if (r) r.soci.forEach(function (s) { if (!soci.some(function (y) { return y.id === s.id; })) soci.push(s); });
+      var qualcunoPaga = Object.keys(pagati).length > 0;
+      var wrap = document.createElement('div');
+      wrap.className = 'modal-bg';
+      wrap.innerHTML =
+        '<form class="modal largo" role="dialog" aria-modal="true" aria-label="' + (r ? 'Modifica rata' : 'Nuova rata') + '" novalidate>' +
+          '<h2>' + (r ? 'Modifica rata' : 'Nuova rata') + '</h2>' +
+          '<label class="campo"><span>Nome</span><input name="titolo" maxlength="80" placeholder="Terra e fondocassa · maggio" value="' + esc(r ? r.titolo : '') + '"></label>' +
+          '<div class="due"><label class="campo"><span>Importo a testa (€)</span><input name="importo" type="number" inputmode="decimal" step="0.01" min="0.01" value="' + (r ? num(r.importo) : '') + '"' + (qualcunoPaga ? ' disabled' : '') + '></label>' +
+          '<label class="campo"><span>Scadenza</span><input name="scadenza" type="date" value="' + esc(r ? r.scadenza : '') + '"></label></div>' +
+          (qualcunoPaga ? '<p class="muted small">L\'importo è bloccato perché qualcuno ha già pagato.</p>' : '') +
+          '<fieldset class="scelta-soci"><legend>Soci <button type="button" class="link" id="tutti">tutti</button> · <button type="button" class="link" id="nessuno">nessuno</button></legend>' +
+            soci.map(function (s) {
+              return '<label><input type="checkbox" name="soci" value="' + esc(s.id) + '"' + (scelti[s.id] ? ' checked' : '') + (pagati[s.id] ? ' disabled' : '') + '> ' +
+                esc(s.nome) + (pagati[s.id] ? ' <span class="muted small">(ha pagato)</span>' : '') + '</label>';
+            }).join('') +
+          '</fieldset>' +
+          '<p class="anteprima" id="tot-r"></p>' +
+          '<p class="errore" id="err-r" hidden></p>' +
+          '<div class="azioni">' + (r && !qualcunoPaga ? '<button type="button" class="btn pericolo" data-a="elimina">Elimina</button>' : '') +
+            '<button type="button" class="btn" data-a="no">Annulla</button><button type="submit" class="btn primario">Salva</button></div>' +
+        '</form>';
+      document.body.appendChild(wrap);
+      var f = wrap.querySelector('form'), err = wrap.querySelector('#err-r');
+      function ids() { return Array.prototype.map.call(f.querySelectorAll('input[name=soci]:checked'), function (i) { return i.value; }); }
+      function tot() {
+        var n = ids().length, imp = num(f.importo.value);
+        wrap.querySelector('#tot-r').innerHTML = plurale(n, 'socio', 'soci') + ' × ' + UI.euro(imp) + ' = <b>' + UI.euro(n * imp) + '</b> in arrivo';
+      }
+      tot();
+      f.addEventListener('input', function () { err.hidden = true; tot(); });
+      f.addEventListener('change', tot);
+      wrap.addEventListener('click', function (e) {
+        var a = e.target.getAttribute && e.target.getAttribute('data-a');
+        if (e.target === wrap || a === 'no') wrap.remove();
+        if (e.target.id === 'tutti' || e.target.id === 'nessuno') {
+          f.querySelectorAll('input[name=soci]:not(:disabled)').forEach(function (i) { i.checked = e.target.id === 'tutti'; });
+          tot();
+        }
+        if (a === 'elimina') {
+          RanchAPI.adminRataElimina(ctx.k, r.id).then(function () { wrap.remove(); UI.toast('Rata eliminata'); fatto(); })
+            .catch(function (e2) { err.textContent = e2.message; err.hidden = false; });
+        }
+      });
+      f.addEventListener('submit', function (e) {
+        e.preventDefault();
+        var imp = qualcunoPaga ? num(r.importo) : Number(f.importo.value), sel = ids();
+        var msg = !f.titolo.value.trim() ? 'Scrivi il nome della rata.'
+          : !(imp > 0) ? 'Indica un importo maggiore di zero.'
+          : !f.scadenza.value ? 'Scegli la scadenza.'
+          : !sel.length ? 'Scegli almeno un socio.' : '';
+        if (msg) { err.textContent = msg; err.hidden = false; return; }
+        var btn = f.querySelector('button[type=submit]');
+        btn.disabled = true; btn.textContent = 'Salvataggio…';
+        RanchAPI.adminRataSalva(ctx.k, { id: r ? r.id : null, titolo: f.titolo.value.trim(), importo: imp, scadenza: f.scadenza.value, soci: sel })
+          .then(function () { wrap.remove(); UI.toast(r ? 'Rata aggiornata' : 'Rata creata'); fatto(); })
+          .catch(function (e2) { btn.disabled = false; btn.textContent = 'Salva'; err.textContent = e2.message; err.hidden = false; });
+      });
+    }).catch(function (e) { UI.toast(e.message); });
+  }
+
+  // ---------- l'admin cambia quote, costo quota e scadenza di un progetto in raccolta ----------
   function modificaProgetto(x, ctx, fatto) {
-    var esecuzione = x.stato === 'sviluppo' || x.stato === 'chiuso';
-    var bloccato = x.quoteVendute > 0 || esecuzione;
+    var bloccato = x.quoteVendute > 0;
     var wrap = document.createElement('div');
     wrap.className = 'modal-bg';
     wrap.innerHTML =
       '<form class="modal" role="dialog" aria-modal="true" aria-label="Modifica ' + esc(x.titolo) + '" novalidate>' +
         '<h2>' + esc(x.titolo) + '</h2>' +
-        '<div class="due"><label class="campo"><span>Quote totali</span><input name="q" type="number" inputmode="numeric" min="' + Math.max(1, x.quoteVendute) + '" value="' + x.quoteTotali + '"' + (esecuzione ? ' disabled' : '') + '></label>' +
+        '<div class="due"><label class="campo"><span>Quote totali</span><input name="q" type="number" inputmode="numeric" min="' + Math.max(1, x.quoteVendute) + '" value="' + x.quoteTotali + '"></label>' +
         '<label class="campo"><span>Costo quota (€)</span><input name="c" type="number" inputmode="decimal" step="0.01" min="0.01" value="' + num(x.costoQuota) + '"' + (bloccato ? ' disabled' : '') + '></label></div>' +
-        (esecuzione ? '<p class="muted small">Il progetto è in esecuzione: quote e costo sono bloccati. Per cambiarli riportalo prima in raccolta dalla sua pagina.</p>'
-          : bloccato ? '<p class="muted small">Il costo quota è bloccato perché ci sono già ' + x.quoteVendute + ' quote vendute; le quote totali non possono scendere sotto questo numero.</p>' : '') +
-        '<label class="campo"><span>Scadenza (mese in cui pesa sulla cassa)</span><input name="s" type="date" value="' + esc(x.scadenza) + '"></label>' +
+        (bloccato ? '<p class="muted small">Il costo quota è bloccato perché ci sono già ' + x.quoteVendute + ' quote vendute; le quote totali non possono scendere sotto questo numero.</p>' : '') +
+        '<label class="campo"><span>Scadenza</span><input name="s" type="date" value="' + esc(x.scadenza) + '"></label>' +
         '<p class="anteprima" id="tot-p"></p>' +
         '<p class="errore" id="err-mp" hidden></p>' +
         '<div class="azioni"><button type="button" class="btn" data-a="no">Annulla</button><button type="submit" class="btn primario">Salva</button></div>' +
@@ -241,18 +290,27 @@ window.Cassa = (function () {
     f.addEventListener('submit', function (e) {
       e.preventDefault();
       if (!f.s.value) { err.textContent = 'Scegli una scadenza.'; err.hidden = false; return; }
-      RanchAPI.modificaProgetto(ctx.k, x.id, { titolo: x.titolo, descrizione: x.descrizione || '', quoteTotali: esecuzione ? x.quoteTotali : Number(f.q.value),
+      RanchAPI.modificaProgetto(ctx.k, x.id, { titolo: x.titolo, descrizione: x.descrizione || '', quoteTotali: Number(f.q.value),
         costoQuota: bloccato ? num(x.costoQuota) : Number(f.c.value), scadenza: f.s.value })
         .then(function () { wrap.remove(); UI.toast('Progetto aggiornato'); fatto(); })
         .catch(function (e2) { err.textContent = e2.message; err.hidden = false; });
     });
   }
 
-  function prossimoMese(m) {
-    var a = Number(m.slice(0, 4)), b = Number(m.slice(5, 7)) + 1;
-    if (b > 12) { b = 1; a++; }
-    return a + '-' + String(b).padStart(2, '0');
+  function conferma(titolo, testoHtml, etichetta, siFn, pericolo) {
+    var w = document.createElement('div');
+    w.className = 'modal-bg';
+    w.innerHTML = '<div class="modal" role="alertdialog" aria-modal="true" aria-label="' + esc(titolo) + '">' +
+      '<h2>' + esc(titolo) + '</h2><p>' + testoHtml + '</p>' +
+      '<div class="azioni"><button type="button" class="btn" data-a="no">Indietro</button>' +
+      '<button type="button" class="btn ' + (pericolo ? 'pericolo-pieno' : 'primario') + '" data-a="si">' + esc(etichetta) + '</button></div></div>';
+    document.body.appendChild(w);
+    w.addEventListener('click', function (ev) {
+      var a = ev.target.getAttribute && ev.target.getAttribute('data-a');
+      if (ev.target === w || a === 'no') w.remove();
+      if (a === 'si') { w.remove(); siFn(); }
+    });
   }
 
-  return { mostra: mostra };
+  return { mostra: mostra, collegaPagamenti: collegaPagamenti };
 })();
