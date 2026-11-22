@@ -6,7 +6,6 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 
 const TOKEN = Deno.env.get("TELEGRAM_BOT_TOKEN") ?? "";
 const API = `https://api.telegram.org/bot${TOKEN}`;
-const APP = "https://ermetecolaneri.github.io/Ranch/";
 const db = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, {
   auth: { persistSession: false },
 });
@@ -35,27 +34,27 @@ async function messaggio(msg: { chat: { id: number }; text?: string }) {
     if (!tok) {
       const { data: info } = await db.rpc("tg_info", { p_chat: chat });
       return scrivi(chat, info ? `Ciao ${info.nome}! Sei già collegato. Comandi: /credito, /rate, /stop`
-        : `Ciao! Per ricevere gli avvisi del ranch apri il tuo profilo nell'app e premi "Collega Telegram".\n${APP}`);
+        : `Ciao! Per ricevere gli avvisi del ranch apri il tuo link personale dell'app, vai sul tuo profilo e premi "Collega Telegram".`);
     }
     const { data: r } = await db.rpc("tg_avvia", { p_token: tok, p_chat: chat });
-    if (!r?.ok) return scrivi(chat, `Link scaduto o non valido. Riprova da "Collega Telegram" nel tuo profilo:\n${APP}`);
-    return scrivi(chat, `Ciao ${r.nome}! 🏍️ Da ora ti scrivo qui per rate, progetti ed eventi del ranch.\n\nComandi: /credito, /rate, /stop`);
+    if (!r?.ok) return scrivi(chat, `Link scaduto o non valido. Riprova da "Collega Telegram" nel tuo profilo dell'app.`);
+    return scrivi(chat, `Ciao ${r.nome}! 🏍️ Da ora ti scrivo qui per rate, progetti ed eventi del ranch.\n\nComandi: /credito, /rate, /stop\n\nLa tua app: ${r.link}\n(è il tuo link personale: non inoltrarlo)`);
   }
   const { data: info } = await db.rpc("tg_info", { p_chat: chat });
-  if (!info) return scrivi(chat, `Non ti conosco ancora: apri il tuo profilo nell'app e premi "Collega Telegram".\n${APP}`);
+  if (!info) return scrivi(chat, `Non ti conosco ancora: apri il tuo link personale dell'app, vai sul tuo profilo e premi "Collega Telegram".`);
   if (testo.startsWith("/credito")) return scrivi(chat, `💰 Il tuo credito: ${euro(Number(info.credito))}`);
   if (testo.startsWith("/rate")) {
     const rate = info.rate as { titolo: string; importo: number; scadenza: string }[];
     if (!rate.length) return scrivi(chat, "✅ Nessuna rata da pagare.");
     const tot = rate.reduce((t, r) => t + Number(r.importo), 0);
     return scrivi(chat, "📋 Rate da pagare:\n" + rate.map((r) => `• ${r.titolo}: ${euro(Number(r.importo))} (entro il ${data(r.scadenza)})`).join("\n") +
-      `\n\nTotale: ${euro(tot)}\nSegna il pagamento nell'app: ${APP}`);
+      `\n\nTotale: ${euro(tot)}\nSegna il pagamento nell'app: ${info.link}`);
   }
   if (testo.startsWith("/stop")) {
     await db.rpc("tg_scollega_chat", { p_chat: chat });
     return scrivi(chat, "Ok, non ti scrivo più. Per ricollegarti usa \"Collega Telegram\" nel tuo profilo.");
   }
-  return scrivi(chat, `Comandi: /credito, /rate, /stop\nApp: ${APP}`);
+  return scrivi(chat, `Comandi: /credito, /rate, /stop\nLa tua app: ${info.link}`);
 }
 
 async function inviaCoda() {
