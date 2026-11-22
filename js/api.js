@@ -214,6 +214,19 @@
                          progetto: id, quote: quote, causale: quote + (quote === 1 ? ' quota' : ' quote'), messaggio: (messaggio || '').trim() });
       return attesa({ progetto: progettoPubblico(p), credito: credito - costo });
     },
+    adminMessaggi: function (k) {
+      var a = perCodice(k); if (!a || !a.admin) return rifiuto('Funzione riservata all\'admin.');
+      D.messaggi = D.messaggi || [];
+      return attesa({ soci: D.soci.filter(function (x) { return x.attivo; }).map(function (x, i) { return { id: x.id, nome: x.nome, foto: x.foto || '', collegato: i % 3 !== 2 }; }),
+        storico: D.messaggi.slice().reverse() });
+    },
+    adminMessaggioInvia: function (k, tipo, testo, soci) {
+      var a = perCodice(k); if (!a || !a.admin) return rifiuto('Funzione riservata all\'admin.');
+      if (!String(testo || '').trim()) return rifiuto('Scrivi il messaggio.');
+      D.messaggi = D.messaggi || [];
+      D.messaggi.push({ id: Date.now(), tipo: tipo, testo: testo, data: new Date().toISOString(), destinatari: soci.length, consegnati: soci.length, falliti: 0 });
+      return attesa({ ok: true, destinatari: soci.length });
+    },
     telegramStato: function (k) { var s = perCodice(k); return s ? attesa({ collegato: !!s.telegram, bot: 'RanchCH_bot' }) : rifiuto('Link personale non valido.'); },
     telegramCollega: function (k) { var s = perCodice(k); if (!s) return rifiuto('Link personale non valido.'); s.telegram = true; return attesa({ bot: 'RanchCH_bot', url: '#/soci/' + s.id }); },
     telegramScollega: function (k) { var s = perCodice(k); if (s) s.telegram = false; return attesa({ ok: true }); },
@@ -670,6 +683,8 @@
       return rpc('modifica_progetto', a).then(conFotoProgetto);
     },
     telegramStato: function (k) { return rpc('telegram_stato', { p_k: k }); },
+    adminMessaggi: function (k) { return rpc('admin_messaggi', { p_k: k }).then(function (d) { d.soci.forEach(conFoto); return d; }); },
+    adminMessaggioInvia: function (k, tipo, testo, soci) { return rpc('admin_messaggio_invia', { p_k: k, p_tipo: tipo, p_testo: testo, p_soci: soci }); },
     telegramCollega: function (k) { return rpc('telegram_collega', { p_k: k }); },
     telegramScollega: function (k) { return rpc('telegram_scollega', { p_k: k }); },
     annullaPartecipazione: function (k, id) {

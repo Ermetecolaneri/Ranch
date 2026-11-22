@@ -1,7 +1,7 @@
 // Pagina admin: crediti, soci, storico. Visibile e utilizzabile solo dall'admin (riconosciuto dal link personale).
 window.Admin = (function () {
   var esc = UI.esc;
-  var SCHEDE = { crediti: 'Crediti', soci: 'Soci', storico: 'Storico' };
+  var SCHEDE = { crediti: 'Crediti', soci: 'Soci', storico: 'Storico', messaggi: 'Messaggi' };
   var TIPI = { accredito: 'Accredito', addebito: 'Addebito', acquisto: 'Acquisto', storno: 'Storno', rimborso: 'Rimborso' };
   var MESI = ['gennaio', 'febbraio', 'marzo', 'aprile', 'maggio', 'giugno', 'luglio', 'agosto', 'settembre', 'ottobre', 'novembre', 'dicembre'];
 
@@ -24,6 +24,7 @@ window.Admin = (function () {
       if (scheda === 'crediti') crediti(corpo, d, ctx, ricarica);
       if (scheda === 'soci') soci(corpo, d, ctx, ricarica);
       if (scheda === 'storico') storico(corpo, d, ctx, ricarica);
+      if (scheda === 'messaggi') messaggi(corpo, ctx);
     }).catch(function (e) { view.innerHTML = UI.errore(e); });
   }
 
@@ -332,6 +333,82 @@ window.Admin = (function () {
     });
     return wrap;
   }
+  // ---------------- Messaggi Telegram ----------------
+  var TIPI_MSG = { comunicazione: ['📣', 'Comunicazione'], promozione: ['🏷️', 'Promozione'], urgente: ['🚨', 'Urgente'] };
+  function messaggi(el, ctx) {
+    el.innerHTML = UI.caricamento();
+    RanchAPI.adminMessaggi(ctx.k).then(function (d) {
+      var coll = d.soci.filter(function (s) { return s.collegato; }), tipo = 'comunicazione';
+      el.innerHTML =
+        '<form class="riquadro" id="msg" novalidate>' +
+          '<h2>Nuovo messaggio Telegram</h2>' +
+          '<p class="muted small">' + coll.length + ' di ' + d.soci.length + ' soci hanno collegato Telegram' +
+            (coll.length < d.soci.length ? ' · gli altri lo fanno dal loro profilo con "Collega"' : '') + '</p>' +
+          '<div class="segmenti" role="group" aria-label="Tipo di messaggio">' + Object.keys(TIPI_MSG).map(function (t) {
+            return '<button type="button" class="btn piccolo' + (t === tipo ? ' attivo' : '') + '" data-tipo="' + t + '">' + TIPI_MSG[t][0] + ' ' + TIPI_MSG[t][1] + '</button>';
+          }).join('') + '</div>' +
+          '<label class="campo"><span>Testo <em class="muted" id="cont-msg"></em></span>' +
+            '<textarea name="testo" rows="5" maxlength="2000" placeholder="Domenica giornata lavori in pista: ci vediamo alle 9 alla curva La Parente!"></textarea></label>' +
+          '<div class="sel-soci">' +
+            '<div class="sel-azioni"><button type="button" class="link" data-sel="tutti">Tutti</button> · <button type="button" class="link" data-sel="nessuno">Nessuno</button></div>' +
+            d.soci.map(function (s) {
+              return '<label class="sel-socio' + (s.collegato ? '' : ' off') + '"><input type="checkbox" name="dest" value="' + esc(s.id) + '"' +
+                (s.collegato ? ' checked' : ' disabled') + '>' + UI.avatar(s, 28) + '<span>' + esc(s.nome) + '</span>' +
+                '<em class="muted">' + (s.collegato ? '' : 'non collegato') + '</em></label>';
+            }).join('') +
+          '</div>' +
+          '<div class="anteprima-tg" id="anteprima-tg" hidden><span class="bolla"></span></div>' +
+          '<p class="errore" id="err-msg" hidden></p>' +
+          '<button type="submit" class="btn primario largo" id="invia-msg">Invia</button>' +
+        '</form>' +
+        '<h2>Messaggi inviati</h2>' +
+        (d.storico.length ? '<ul class="storico-msg">' + d.storico.map(function (m) {
+          var stato = m.consegnati >= m.destinatari ? '✓ consegnato a ' + m.consegnati + '/' + m.destinatari
+            : m.falliti > 0 ? '⚠ ' + m.consegnati + '/' + m.destinatari + ' consegnati, ' + m.falliti + ' non riusciti'
+            : '⏳ in invio… ' + m.consegnati + '/' + m.destinatari;
+          return '<li><span class="ico-msg">' + (TIPI_MSG[m.tipo] || ['📣'])[0] + '</span><div><p class="testo-msg">' + esc(m.testo) + '</p>' +
+            '<p class="muted small">' + UI.data(m.data) + ' ' + new Date(m.data).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' }) + ' · ' + stato + '</p></div></li>';
+        }).join('') + '</ul>' : '<p class="muted">Nessun messaggio inviato.</p>');
+
+      var f = el.querySelector('#msg'), err = el.querySelector('#err-msg'), btn = el.querySelector('#invia-msg');
+      function scelti() { return Array.prototype.map.call(f.querySelectorAll('input[name=dest]:checked'), function (c) { return c.value; }); }
+      function aggiorna() {
+        var n = scelti().length, t = f.testo.value.trim();
+        el.querySelector('#cont-msg').textContent = f.testo.value.length + '/2000';
+        btn.textContent = n ? 'Invia a ' + n + (n === 1 ? ' socio' : ' soci') : 'Invia';
+        btn.disabled = !n || !t;
+        var a = el.querySelector('#anteprima-tg');
+        a.hidden = !t;
+        a.querySelector('.bolla').textContent = TIPI_MSG[tipo][0] + ' ' + t;
+      }
+      aggiorna();
+      f.addEventListener('input', function () { err.hidden = true; aggiorna(); });
+      f.addEventListener('click', function (e) {
+        var t = e.target.getAttribute && e.target.getAttribute('data-tipo');
+        if (t) {
+          tipo = t;
+          f.querySelectorAll('[data-tipo]').forEach(function (b) { b.classList.toggle('attivo', b.getAttribute('data-tipo') === t); });
+          aggiorna();
+        }
+        var sel = e.target.getAttribute && e.target.getAttribute('data-sel');
+        if (sel) { f.querySelectorAll('input[name=dest]:not(:disabled)').forEach(function (x) { x.checked = sel === 'tutti'; }); aggiorna(); }
+      });
+      f.addEventListener('submit', function (e) {
+        e.preventDefault();
+        var ids = scelti(), testo = f.testo.value.trim();
+        if (!testo) { err.textContent = 'Scrivi il messaggio.'; err.hidden = false; return; }
+        if (!ids.length) { err.textContent = 'Scegli almeno un socio collegato.'; err.hidden = false; return; }
+        conferma('Inviare il messaggio?', 'Arriva su Telegram a <b>' + ids.length + (ids.length === 1 ? ' socio' : ' soci') + '</b> entro un minuto. Non si può ritirare.', 'Invia', function () {
+          btn.disabled = true; btn.textContent = 'Invio…';
+          RanchAPI.adminMessaggioInvia(ctx.k, tipo, testo, ids).then(function (r) {
+            UI.toast('Messaggio in invio a ' + r.destinatari + (r.destinatari === 1 ? ' socio' : ' soci'));
+            messaggi(el, ctx);
+          }).catch(function (e2) { err.textContent = e2.message; err.hidden = false; aggiorna(); });
+        });
+      });
+    }).catch(function (e) { el.innerHTML = UI.errore(e); });
+  }
+
   function conferma(titolo, testoHtml, etichetta, siFn) {
     var wrap = modale('<div class="modal" role="alertdialog" aria-modal="true" aria-label="' + esc(titolo) + '">' +
       '<h2>' + esc(titolo) + '</h2><p>' + testoHtml + '</p>' +
