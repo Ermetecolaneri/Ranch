@@ -44,6 +44,7 @@ window.Soci = (function () {
             '</div>' +
           '</div>' +
           (mia ? '<button type="button" class="btn" id="modifica">Modifica profilo</button>' : '') +
+          (mia ? '<div class="telegram-box" id="telegram-box"></div>' : '') +
           '<div class="metriche">' +
             '<div class="metrica"><span>Credito disponibile</span><strong>' + UI.euro(s.credito) + '</strong></div>' +
             '<div class="metrica"><span>Totale investito</span><strong>' + UI.euro(s.investito) + '</strong></div>' +
@@ -94,12 +95,38 @@ window.Soci = (function () {
       Cassa.collegaPagamenti(view, rate.map(function (r) {
         return { id: r.id, titolo: r.titolo, importo: r.importo, soci: [{ id: s.id, nome: s.nome, pagataIl: r.pagataIl }] };
       }), ctx, function () { scheda(view, id, ctx); });
+      if (mia) boxTelegram(view.querySelector('#telegram-box'), ctx);
       if (mia) {
         view.querySelector('#modifica').addEventListener('click', function () {
           modificaProfilo(s, ctx, function () { scheda(view, id, ctx); });
         });
       }
     }).catch(function (e) { view.innerHTML = UI.errore(e); });
+  }
+
+  var ICONA_TG = '<svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M21.5 4.2 2.9 11.4c-1 .4-1 1.6 0 1.9l4.6 1.5 1.8 5.5c.2.7 1.1.9 1.6.4l2.6-2.4 4.7 3.5c.6.4 1.4.1 1.6-.6l3.2-15c.2-.9-.7-1.6-1.5-1.2zM9.7 14.4l-.5 3.4-1.1-3.6 9.6-6.3-8 6.5z" fill="currentColor"/></svg>';
+  function boxTelegram(box, ctx) {
+    if (!box) return;
+    RanchAPI.telegramStato(ctx.k).then(function (st) {
+      box.innerHTML = st.collegato
+        ? '<span class="tg-ico">' + ICONA_TG + '</span><span class="tg-testo"><b>Telegram collegato</b><small>Ricevi gli avvisi su @' + esc(st.bot || '') + '</small></span>' +
+          '<button type="button" class="btn piccolo" id="tg-off">Scollega</button>'
+        : '<span class="tg-ico">' + ICONA_TG + '</span><span class="tg-testo"><b>Avvisi su Telegram</b><small>Rate, progetti ed eventi direttamente in chat</small></span>' +
+          '<button type="button" class="btn primario piccolo" id="tg-on">Collega</button>';
+      box.classList.toggle('on', !!st.collegato);
+      var on = box.querySelector('#tg-on'), off = box.querySelector('#tg-off');
+      if (on) on.addEventListener('click', function () {
+        on.disabled = true; on.textContent = 'Apro Telegram…';
+        RanchAPI.telegramCollega(ctx.k).then(function (r) {
+          UI.toast('Premi "Avvia" nella chat del bot');
+          setTimeout(function () { boxTelegram(box, ctx); }, 4000);
+          window.location.href = r.url;
+        }).catch(function (e) { on.disabled = false; on.textContent = 'Collega'; UI.toast(e.message); });
+      });
+      if (off) off.addEventListener('click', function () {
+        RanchAPI.telegramScollega(ctx.k).then(function () { UI.toast('Telegram scollegato'); boxTelegram(box, ctx); });
+      });
+    }).catch(function () { box.hidden = true; });
   }
 
   function modificaProfilo(s, ctx, aggiorna) {

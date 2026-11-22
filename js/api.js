@@ -214,6 +214,9 @@
                          progetto: id, quote: quote, causale: quote + (quote === 1 ? ' quota' : ' quote'), messaggio: (messaggio || '').trim() });
       return attesa({ progetto: progettoPubblico(p), credito: credito - costo });
     },
+    telegramStato: function (k) { var s = perCodice(k); return s ? attesa({ collegato: !!s.telegram, bot: 'RanchCH_bot' }) : rifiuto('Link personale non valido.'); },
+    telegramCollega: function (k) { var s = perCodice(k); if (!s) return rifiuto('Link personale non valido.'); s.telegram = true; return attesa({ bot: 'RanchCH_bot', url: '#/soci/' + s.id }); },
+    telegramScollega: function (k) { var s = perCodice(k); if (s) s.telegram = false; return attesa({ ok: true }); },
     annullaPartecipazione: function (k, id) {
       var s = perCodice(k), p = trovaProgetto(id);
       if (!s) return rifiuto('Link personale non valido.');
@@ -666,6 +669,9 @@
       var a = argsProgetto(k, d); a.p_id = id;
       return rpc('modifica_progetto', a).then(conFotoProgetto);
     },
+    telegramStato: function (k) { return rpc('telegram_stato', { p_k: k }); },
+    telegramCollega: function (k) { return rpc('telegram_collega', { p_k: k }); },
+    telegramScollega: function (k) { return rpc('telegram_scollega', { p_k: k }); },
     annullaPartecipazione: function (k, id) {
       return rpc('annulla_partecipazione', { p_k: k, p_id: id }).then(function (d) { conFotoProgetto(d.progetto); return d; });
     },
