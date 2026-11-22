@@ -281,10 +281,10 @@
       });
       var prog = D.progetti.filter(function (x) { return x.stato !== 'eliminato'; }).map(function (x) {
         var pp = progettoPubblico(x), sost = {};
-        D.movimenti.forEach(function (m) { if (m.progetto === x.id && m.tipo === 'acquisto') sost[m.socio] = 1; });
+        D.movimenti.forEach(function (m) { if (m.progetto === x.id) sost[m.socio] = (sost[m.socio] || 0) + m.quote; });
         return { id: x.id, titolo: x.titolo, descrizione: x.descrizione, stato: x.stato, scadenza: x.scadenza, eseguitoIl: x.eseguitoIl || null,
                  quoteTotali: x.quoteTotali, costoQuota: x.costoQuota, totale: pp.totale, raccolto: pp.raccolto, quoteVendute: pp.quoteVendute,
-                 sostenitori: Object.keys(sost).length };
+                 sostenitori: Object.keys(sost).filter(function (k) { return sost[k] > 0; }).length };
       }).sort(function (a, b) { return a.scadenza < b.scadenza ? -1 : 1; });
       return attesa({ rate: D.rate.slice().sort(function (a, b) { return a.scadenza < b.scadenza ? -1 : 1; }).map(rataPubblica),
         entrate: Object.keys(ent).sort().map(function (k) { return ent[k]; }), progetti: prog,

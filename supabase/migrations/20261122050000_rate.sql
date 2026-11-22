@@ -68,7 +68,7 @@ language sql stable security definer set search_path = public as $$
           'eseguitoIl', x.eseguito_il, 'quoteTotali', x.quote_totali, 'costoQuota', x.costo_quota,
           'totale', (x.quote_totali * x.costo_quota)::numeric(10,2),
           'raccolto', coalesce(r.raccolto, 0), 'quoteVendute', coalesce(r.quote_vendute, 0),
-          'sostenitori', (select count(distinct m.socio_id) from public.movimenti m where m.progetto_id = x.id and m.tipo = 'acquisto'))
+          'sostenitori', (select count(*) from (select 1 from public.movimenti m where m.progetto_id = x.id group by m.socio_id having sum(m.quote) > 0) q))
         order by x.scadenza, x.titolo)
       from public.progetti x left join public.raccolta_progetti r on r.progetto_id = x.id
       where x.stato <> 'eliminato'), '[]'::jsonb),

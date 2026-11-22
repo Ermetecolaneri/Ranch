@@ -51,6 +51,8 @@ window.Cassa = (function () {
     view.innerHTML = UI.caricamento();
     RanchAPI.getCassa().then(function (c) {
       var t = calcola(c), ora = meseAttuale(), admin = !!(ctx.me && ctx.me.admin), io = ctx.me && ctx.me.id;
+      // si apre solo la prima rata che devo ancora pagare
+      var primaMia = c.rate.filter(function (r) { return r.soci.some(function (x) { return x.id === io && !x.pagataIl; }); })[0];
       view.innerHTML =
         '<div class="kpi-griglia tre">' +
           '<div class="kpi evidenza"><span>Disponibile</span><strong>' + UI.euro(t.disponibile) + '</strong></div>' +
@@ -114,7 +116,7 @@ window.Cassa = (function () {
 
         '<div class="titolo-azione"><h2>Rate</h2>' +
           (admin ? '<button type="button" class="btn primario piccolo" id="nuova-rata">+ Nuova rata</button>' : '') + '</div>' +
-        (c.rate.length ? '<div class="rate">' + c.rate.map(function (r) { return rataHtml(r, admin, io); }).join('') + '</div>'
+        (c.rate.length ? '<div class="rate">' + c.rate.map(function (r) { return rataHtml(r, admin, io, r === primaMia); }).join('') + '</div>'
           : '<p class="muted">Nessuna rata.</p>');
 
       view.querySelectorAll('[data-modp]').forEach(function (bt) {
@@ -135,11 +137,10 @@ window.Cassa = (function () {
     }).catch(function (e) { view.innerHTML = UI.errore(e); });
   }
 
-  function rataHtml(r, admin, io) {
+  function rataHtml(r, admin, io, aperta) {
     var pagati = r.soci.filter(function (s) { return s.pagataIl; }).length, n = r.soci.length;
     var scaduta = r.scadenza < oggi() && pagati < n;
-    var mia = r.soci.filter(function (s) { return s.id === io; })[0];
-    return '<details class="rata' + (pagati === n ? ' saldata' : '') + '"' + (mia && !mia.pagataIl ? ' open' : '') + '>' +
+    return '<details class="rata' + (pagati === n ? ' saldata' : '') + '"' + (aperta ? ' open' : '') + '>' +
       '<summary><span class="rata-titolo"><b>' + esc(r.titolo) + '</b>' +
         '<span class="sotto-voce">' + UI.euro(r.importo) + ' a testa · scade ' + esc(UI.data(r.scadenza)) +
         (scaduta ? ' · <span class="neg">scaduta</span>' : '') + '</span></span>' +
