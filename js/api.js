@@ -49,7 +49,7 @@
     rate: [{ mese: '2026-11-01', voce: 'Ingresso (1/2)', quotaMoto: 175, quotaCassa: 0 }, { mese: '2026-12-01', voce: 'Ingresso (2/2)', quotaMoto: 175, quotaCassa: 0 },
            { mese: '2027-01-01', voce: 'Rata', quotaMoto: 87.5, quotaCassa: 15.625 }, { mese: '2027-02-01', voce: 'Rata', quotaMoto: 87.5, quotaCassa: 15.625 },
            { mese: '2027-03-01', voce: 'Rata', quotaMoto: 87.5, quotaCassa: 15.625 }, { mese: '2027-04-01', voce: 'Rata', quotaMoto: 87.5, quotaCassa: 15.625 }],
-    uscite: [{ mese: '2026-12-01', voce: 'Prima coppia di moto (2 × 1.400 €)', importo: 2800 }, { mese: '2027-04-01', voce: 'Seconda coppia di moto (2 × 1.400 €)', importo: 2800 }] };
+    uscite: [] };
   if (D && !D.eventi) D.eventi = [
     { id: 'e01', titolo: 'Gara sociale d\'inverno', descrizione: 'Tre manche sul tracciato completo, poi pranzo tutti insieme.', foto: '',
       stato: 'da_programmare', dataInizio: null, dataFine: null, creatoIl: '2026-11-10T10:00:00', date: [
@@ -181,6 +181,8 @@
       if (p.creatoDa !== s.id && !s.admin) return rifiuto('Solo chi ha proposto il progetto può modificarlo.');
       var e = validaProgetto(d);
       if (e) return rifiuto(e);
+      if ((p.stato === 'sviluppo' || p.stato === 'chiuso') && (Number(d.quoteTotali) !== p.quoteTotali || Number(d.costoQuota) !== p.costoQuota))
+        return rifiuto('Il progetto è in esecuzione: per cambiare quote o costo riportalo prima in raccolta.');
       var vend = quoteVendute(id), haMov = D.movimenti.some(function (m) { return m.progetto === id; });
       if (haMov && Number(d.costoQuota) !== p.costoQuota) return rifiuto('Il costo quota non si può cambiare dopo il primo acquisto.');
       if (haMov && Number(d.quoteTotali) < vend) return rifiuto('Sono già state vendute ' + vend + ' quote: le quote totali non possono essere meno.');
@@ -208,6 +210,9 @@
       var s = perCodice(k), p = trovaProgetto(id);
       if (!s || !s.admin) return rifiuto('Solo l\'admin può cambiare lo stato.');
       if (!p) return rifiuto('Progetto non trovato.');
+      var manc = p.quoteTotali - quoteVendute(id);
+      if ((stato === 'sviluppo' || stato === 'chiuso') && manc > 0)
+        return rifiuto('Per passare in esecuzione il progetto deve essere finanziato al 100%: ' + (manc === 1 ? 'manca 1 quota' : 'mancano ' + manc + ' quote') + ' (' + UI.euro(manc * p.costoQuota) + ').');
       p.stato = stato;
       return attesa(progettoPubblico(p));
     },
@@ -258,7 +263,21 @@
     },
 
     // ----- piano di cassa (demo) -----
-    getPiano: function () { return attesa(D.piano); },
+    getPiano: function () {
+      var prog = D.progetti.filter(function (x) { return x.stato !== 'eliminato'; }).map(function (x) {
+        var pp = progettoPubblico(x);
+        return { id: x.id, titolo: x.titolo, descrizione: x.descrizione, stato: x.stato, scadenza: x.scadenza, quoteTotali: x.quoteTotali,
+                 costoQuota: x.costoQuota, totale: pp.totale, raccolto: pp.raccolto, quoteVendute: pp.quoteVendute };
+      }).sort(function (a, b) { return a.scadenza < b.scadenza ? -1 : 1; });
+      var vers = 0, cred = 0;
+      D.movimenti.forEach(function (m) { cred += m.importo; if (m.tipo === 'accredito' || m.tipo === 'addebito') vers += m.importo; });
+      var es = prog.filter(function (x) { return x.stato === 'sviluppo' || x.stato === 'chiuso'; });
+      return attesa(Object.assign({}, D.piano, { progetti: prog, reale: {
+        versato: vers, creditoLibero: cred,
+        quoteAperte: prog.filter(function (x) { return x.stato === 'raccolta'; }).reduce(function (t, x) { return t + x.raccolto; }, 0),
+        raccoltoEsecuzione: es.reduce(function (t, x) { return t + x.raccolto; }, 0),
+        speso: es.reduce(function (t, x) { return t + x.totale; }, 0) } }));
+    },
     adminPianoSalva: function (k, d) {
       var a = perCodice(k); if (!a || !a.admin) return rifiuto('Funzione riservata all\'admin.');
       D.piano = { titolo: d.titolo, soci: d.soci, note: d.note, aggiornatoIl: new Date().toISOString(),

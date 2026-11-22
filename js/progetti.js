@@ -3,7 +3,7 @@ window.Progetti = (function () {
   var esc = UI.esc;
   var STATI = {
     raccolta: { nome: 'In raccolta', cls: 'st-raccolta' },
-    sviluppo: { nome: 'In sviluppo', cls: 'st-sviluppo' },
+    sviluppo: { nome: 'In esecuzione', cls: 'st-sviluppo' },
     chiuso:   { nome: 'Chiuso',      cls: 'st-chiuso' }
   };
 

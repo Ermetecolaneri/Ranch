@@ -16,11 +16,13 @@ window.Cassa = (function () {
       var k = r.mese.slice(0, 7), m = mesi[k] || (mesi[k] = { mese: r.mese, entrate: 0, uscite: 0, voci: [] });
       m.entrate += (num(r.quotaMoto) + num(r.quotaCassa)) * p.soci;
     });
-    p.uscite.forEach(function (u) {
-      var k = u.mese.slice(0, 7), m = mesi[k] || (mesi[k] = { mese: u.mese, entrate: 0, uscite: 0, voci: [] });
-      m.uscite += num(u.importo);
-      m.voci.push(u.voce);
-    });
+    function uscita(mese, importo, voce) {
+      var k = mese.slice(0, 7), m = mesi[k] || (mesi[k] = { mese: mese.slice(0, 7) + '-01', entrate: 0, uscite: 0, voci: [] });
+      m.uscite += num(importo);
+      m.voci.push(voce);
+    }
+    (p.progetti || []).forEach(function (x) { uscita(x.scadenza, x.totale, x.titolo); });
+    p.uscite.forEach(function (u) { uscita(u.mese, u.importo, u.voce); });
     var righe = Object.keys(mesi).sort().map(function (k) { return mesi[k]; }), saldo = 0;
     righe.forEach(function (m) { saldo += m.entrate - m.uscite; m.saldo = saldo; });
     var entrate = righe.reduce(function (t, m) { return t + m.entrate; }, 0);
@@ -35,7 +37,19 @@ window.Cassa = (function () {
       var c = calcola(p), ora = meseAttuale(), admin = ctx.me && ctx.me.admin;
       var totMoto = p.rate.reduce(function (t, r) { return t + num(r.quotaMoto); }, 0);
       var totCassa = p.rate.reduce(function (t, r) { return t + num(r.quotaCassa); }, 0);
+      var r = p.reale || { versato: 0, speso: 0, creditoLibero: 0, quoteAperte: 0, raccoltoEsecuzione: 0 };
+      var inCassa = num(r.versato) - num(r.speso);
+      var quadra = Math.abs(inCassa - (num(r.creditoLibero) + num(r.quoteAperte))) < 0.005;
       view.innerHTML =
+        '<h2 class="primo">Situazione reale</h2>' +
+        '<div class="kpi-griglia tre">' +
+          '<div class="kpi"><span>Versato dai soci</span><strong>' + UI.euro(r.versato) + '</strong></div>' +
+          '<div class="kpi"><span>Speso (progetti in esecuzione)</span><strong>' + UI.euro(r.speso) + '</strong></div>' +
+          '<div class="kpi evidenza"><span>In cassa ora</span><strong>' + UI.euro(inCassa) + '</strong></div>' +
+        '</div>' +
+        '<p class="quadratura ' + (quadra ? 'ok' : 'ko') + '">' + (quadra ? '✓ Quadra: ' : '⚠ Non quadra: ') +
+          'in cassa ' + UI.euro(inCassa) + ' = credito libero dei soci ' + UI.euro(r.creditoLibero) + ' + quote raccolte su progetti aperti ' + UI.euro(r.quoteAperte) +
+          (quadra ? '' : ' (differenza ' + UI.euro(inCassa - num(r.creditoLibero) - num(r.quoteAperte)) + ': un progetto in esecuzione non è stato pagato tutto con le quote)') + '</p>' +
         '<div class="piano-testa">' +
           '<div><p class="muted small">Piano in corso</p><h1>' + esc(p.titolo) + '</h1>' +
           '<p class="muted small">' + p.soci + ' soci' + (p.note ? ' · ' + esc(p.note) : '') + '</p></div>' +
@@ -44,7 +58,7 @@ window.Cassa = (function () {
         '<div class="kpi-griglia">' +
           '<div class="kpi"><span>Versato da ogni socio</span><strong>' + UI.euro(c.perSocio) + '</strong></div>' +
           '<div class="kpi"><span>Entrate della società</span><strong>' + UI.euro(c.entrate) + '</strong></div>' +
-          '<div class="kpi"><span>Uscite</span><strong>' + UI.euro(c.uscite) + '</strong></div>' +
+          '<div class="kpi"><span>Uscite (progetti e altro)</span><strong>' + UI.euro(c.uscite) + '</strong></div>' +
           '<div class="kpi evidenza"><span>Fondocassa a fine piano</span><strong>' + UI.euro(c.finale) + '</strong></div>' +
         '</div>' +
         (c.negativo ? '<p class="avviso-cassa">Attenzione: in almeno un mese il saldo della società va sotto zero.</p>' : '') +
@@ -64,6 +78,24 @@ window.Cassa = (function () {
           '<td class="n">' + UI.euro(totMoto) + '</td><td class="n">' + UI.euro(totCassa) + '</td></tr></tfoot>' +
         '</table></div>' +
 
+        '<h2>Uscite previste: i progetti</h2>' +
+        '<p class="muted small">Ogni progetto pesa sulla cassa con il suo costo totale nel mese della scadenza. Passa in esecuzione solo quando è finanziato al 100%.</p>' +
+        '<div class="tabella-wrap"><table class="tabella">' +
+          '<thead><tr><th>Progetto</th><th class="n">Totale</th><th class="n">Raccolto</th>' + (admin ? '<th></th>' : '') + '</tr></thead><tbody>' +
+          (p.progetti || []).map(function (x) {
+            var pct = x.totale > 0 ? Math.round(num(x.raccolto) / num(x.totale) * 100) : 0;
+            return '<tr><td><a href="#/progetti/' + esc(x.id) + '">' + esc(x.titolo) + '</a>' +
+              '<span class="sotto-voce">' + esc(meseLabel(x.scadenza.slice(0, 7) + '-01')) + ' · ' + x.quoteTotali + ' × ' + UI.euro(x.costoQuota) + ' · ' +
+              (STATI[x.stato] || x.stato) + '</span></td>' +
+              '<td class="n"><b>' + UI.euro(x.totale) + '</b></td>' +
+              '<td class="n">' + UI.euro(x.raccolto) + '<span class="sotto-voce">' + pct + '%</span></td>' +
+              (admin ? '<td class="n"><button type="button" class="btn piccolo" data-modp="' + esc(x.id) + '">Modifica</button></td>' : '') + '</tr>';
+          }).join('') +
+          '</tbody><tfoot><tr><td>Totale progetti</td><td class="n"><b>' + UI.euro((p.progetti || []).reduce(function (t, x) { return t + num(x.totale); }, 0)) + '</b></td>' +
+          '<td class="n">' + UI.euro((p.progetti || []).reduce(function (t, x) { return t + num(x.raccolto); }, 0)) + '</td>' + (admin ? '<td></td>' : '') + '</tr></tfoot>' +
+        '</table></div>' +
+        (p.uscite.length ? '<p class="muted small">Altre uscite: ' + p.uscite.map(function (u) { return esc(u.voce) + ' ' + UI.euro(u.importo) + ' (' + esc(meseLabel(u.mese)) + ')'; }).join(' · ') + '</p>' : '') +
+
         '<h2>Cassa della società</h2>' +
         '<div class="tabella-wrap"><table class="tabella">' +
           '<thead><tr><th>Mese</th><th class="n">Entrate</th><th class="n">Uscite</th><th class="n">Saldo</th></tr></thead><tbody>' +
@@ -80,6 +112,12 @@ window.Cassa = (function () {
 
       var b = view.querySelector('#mod-piano');
       if (b) b.addEventListener('click', function () { editor(p, ctx, function () { mostra(view, ctx); }); });
+      view.querySelectorAll('[data-modp]').forEach(function (bt) {
+        bt.addEventListener('click', function () {
+          var x = p.progetti.filter(function (y) { return y.id === bt.getAttribute('data-modp'); })[0];
+          modificaProgetto(x, ctx, function () { mostra(view, ctx); });
+        });
+      });
     }).catch(function (e) { view.innerHTML = UI.errore(e); });
   }
 
@@ -96,7 +134,7 @@ window.Cassa = (function () {
         '<label class="campo"><span>Numero di soci</span><input name="soci" type="number" inputmode="numeric" min="1" max="100" value="' + p.soci + '"></label></div>' +
         '<label class="campo"><span>Note</span><textarea name="note" rows="2" maxlength="500">' + esc(p.note) + '</textarea></label>' +
         '<h3>Rate per socio</h3><div id="righe-rate"></div><button type="button" class="btn piccolo" id="agg-rata">+ Aggiungi rata</button>' +
-        '<h3>Uscite della società</h3><div id="righe-uscite"></div><button type="button" class="btn piccolo" id="agg-uscita">+ Aggiungi uscita</button>' +
+        '<h3>Altre uscite (oltre ai progetti)</h3><div id="righe-uscite"></div><button type="button" class="btn piccolo" id="agg-uscita">+ Aggiungi uscita</button>' +
         '<div class="riepilogo" id="riep"></div>' +
         '<p class="errore" id="err-p" hidden></p>' +
         '<div class="azioni"><button type="button" class="btn" data-a="no">Annulla</button><button type="submit" class="btn primario">Salva piano</button></div>' +
@@ -174,6 +212,42 @@ window.Cassa = (function () {
       });
     });
   }
+  var STATI = { raccolta: 'in raccolta', sviluppo: 'in esecuzione', chiuso: 'chiuso' };
+
+  // l'admin cambia quote, costo quota e scadenza di un progetto direttamente dalla cassa
+  function modificaProgetto(x, ctx, fatto) {
+    var esecuzione = x.stato === 'sviluppo' || x.stato === 'chiuso';
+    var bloccato = x.quoteVendute > 0 || esecuzione;
+    var wrap = document.createElement('div');
+    wrap.className = 'modal-bg';
+    wrap.innerHTML =
+      '<form class="modal" role="dialog" aria-modal="true" aria-label="Modifica ' + esc(x.titolo) + '" novalidate>' +
+        '<h2>' + esc(x.titolo) + '</h2>' +
+        '<div class="due"><label class="campo"><span>Quote totali</span><input name="q" type="number" inputmode="numeric" min="' + Math.max(1, x.quoteVendute) + '" value="' + x.quoteTotali + '"' + (esecuzione ? ' disabled' : '') + '></label>' +
+        '<label class="campo"><span>Costo quota (€)</span><input name="c" type="number" inputmode="decimal" step="0.01" min="0.01" value="' + num(x.costoQuota) + '"' + (bloccato ? ' disabled' : '') + '></label></div>' +
+        (esecuzione ? '<p class="muted small">Il progetto è in esecuzione: quote e costo sono bloccati. Per cambiarli riportalo prima in raccolta dalla sua pagina.</p>'
+          : bloccato ? '<p class="muted small">Il costo quota è bloccato perché ci sono già ' + x.quoteVendute + ' quote vendute; le quote totali non possono scendere sotto questo numero.</p>' : '') +
+        '<label class="campo"><span>Scadenza (mese in cui pesa sulla cassa)</span><input name="s" type="date" value="' + esc(x.scadenza) + '"></label>' +
+        '<p class="anteprima" id="tot-p"></p>' +
+        '<p class="errore" id="err-mp" hidden></p>' +
+        '<div class="azioni"><button type="button" class="btn" data-a="no">Annulla</button><button type="submit" class="btn primario">Salva</button></div>' +
+      '</form>';
+    document.body.appendChild(wrap);
+    var f = wrap.querySelector('form'), err = wrap.querySelector('#err-mp');
+    function tot() { wrap.querySelector('#tot-p').innerHTML = 'Costo totale: <b>' + UI.euro(num(f.q.value) * num(f.c.value)) + '</b>'; }
+    f.addEventListener('input', function () { err.hidden = true; tot(); });
+    tot();
+    wrap.addEventListener('click', function (e) { if (e.target === wrap || e.target.getAttribute('data-a') === 'no') wrap.remove(); });
+    f.addEventListener('submit', function (e) {
+      e.preventDefault();
+      if (!f.s.value) { err.textContent = 'Scegli una scadenza.'; err.hidden = false; return; }
+      RanchAPI.modificaProgetto(ctx.k, x.id, { titolo: x.titolo, descrizione: x.descrizione || '', quoteTotali: esecuzione ? x.quoteTotali : Number(f.q.value),
+        costoQuota: bloccato ? num(x.costoQuota) : Number(f.c.value), scadenza: f.s.value })
+        .then(function () { wrap.remove(); UI.toast('Progetto aggiornato'); fatto(); })
+        .catch(function (e2) { err.textContent = e2.message; err.hidden = false; });
+    });
+  }
+
   function prossimoMese(m) {
     var a = Number(m.slice(0, 4)), b = Number(m.slice(5, 7)) + 1;
     if (b > 12) { b = 1; a++; }
