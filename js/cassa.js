@@ -55,25 +55,35 @@ window.Cassa = (function () {
   // cash flow: disponibile + rate future − costo stimato dei progetti attivi = balance
   // (l'immobilizzato è a parte: i beni dei progetti chiusi)
   function bilancio(t) {
-    var balance = t.disponibile + t.future - t.attivi, ok = balance >= -0.005;
-    var pctBl = t.attivi > 0 ? Math.round(t.bloccato / t.attivi * 100) : 0;
+    var entrate = t.disponibile + t.future, uscite = t.attivi, balance = entrate - uscite, ok = balance >= -0.005;
+    var scala = Math.max(entrate, uscite, 1);
     var chiusi = t.fatti.filter(function (x) { return x.stato === 'chiuso'; });
     var immob = chiusi.reduce(function (s, x) { return s + num(x.totale); }, 0);
-    return '<section class="bilancio" aria-label="Bilancio della cassa">' +
-      '<div class="bil-piu">' +
-        '<div class="eq-box disp"><span>Disponibile</span><strong>' + UI.euro(t.disponibile) + '</strong>' +
-          '<small>di cui bloccati nei progetti <b>' + UI.euro(t.bloccato) + '</b></small></div>' +
-        '<div class="eq-box fut"><i class="op">+</i><span>Rate future</span><strong>' + UI.euro(t.future) + '</strong>' +
-          (t.scadute > 0 ? '<small class="neg">' + UI.euro(t.scadute) + ' scadute</small>' : '<small>da incassare</small>') + '</div>' +
+    function w(v) { return (Math.max(0, v) / scala * 100).toFixed(2) + '%'; }
+    function seg(v, cls, nome) { return v > 0.005 ? '<span class="s ' + cls + '" style="width:' + w(v) + '" title="' + esc(nome + ': ' + UI.euro(v)) + '"></span>' : ''; }
+    var IN = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M12 4v13M6 11l6 6 6-6M5 20h14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+    var OUT = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M12 20V7M6 13l6-6 6 6M5 4h14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+    return '<section class="bil" aria-label="Bilancio della cassa">' +
+      '<div class="bil-col entrate">' +
+        '<header><span class="ico">' + IN + '</span><span class="tit">Entrate<small>in cassa + rate da incassare</small></span><strong>' + UI.euro(entrate) + '</strong></header>' +
+        '<div class="bil-bar">' + seg(t.disponibile, 'pieno', 'Disponibile') + seg(t.future, 'righe', 'Rate future') + '</div>' +
+        '<ul>' +
+          '<li><i class="pt pieno"></i><span>Disponibile<small>in cassa ora' + (t.bloccato > 0.005 ? ' · di cui bloccati ' + UI.euro(t.bloccato) : '') + '</small></span><b>' + UI.euro(t.disponibile) + '</b></li>' +
+          '<li><i class="pt righe"></i><span>Rate future<small>' + (t.scadute > 0 ? '<span class="neg">' + UI.euro(t.scadute) + ' scadute</span>' : 'ancora da incassare') + '</small></span><b>' + UI.euro(t.future) + '</b></li>' +
+        '</ul>' +
       '</div>' +
-      '<div class="bil-meno">' +
-        '<div class="eq-box costi"><i class="op">−</i><span>Costo stimato dei progetti</span><strong>' + UI.euro(t.attivi) + '</strong>' +
-          '<small>' + plurale(t.inCorso.length, 'progetto', 'progetti') + ' in raccolta · bloccati <b>' + UI.euro(t.bloccato) + '</b> / ' + UI.euro(t.attivi) + '</small>' +
-          '<span class="mini-barra"><span style="width:' + pctBl + '%"></span></span></div>' +
+      '<div class="bil-col uscite">' +
+        '<header><span class="ico">' + OUT + '</span><span class="tit">Uscite<small>costo stimato · ' + plurale(t.inCorso.length, 'progetto', 'progetti') + ' in raccolta</small></span><strong>' + UI.euro(uscite) + '</strong></header>' +
+        '<div class="bil-bar">' + seg(t.bloccato, 'pieno', 'Già bloccati') + seg(Math.max(0, uscite - t.bloccato), 'righe', 'Da raccogliere') + '</div>' +
+        '<ul>' +
+          '<li><i class="pt pieno"></i><span>Già bloccati<small>quote comprate dai soci</small></span><b>' + UI.euro(t.bloccato) + '</b></li>' +
+          '<li><i class="pt righe"></i><span>Da raccogliere<small>per finire i progetti</small></span><b>' + UI.euro(Math.max(0, uscite - t.bloccato)) + '</b></li>' +
+        '</ul>' +
       '</div>' +
-      '<div class="bil-tot ' + (ok ? 'ok' : 'ko') + '"><i class="op">=</i>' +
-        '<span>Balance</span><strong>' + (balance > 0.005 ? '+' : balance < -0.005 ? '−' : '') + UI.euro(Math.abs(balance)) + '</strong>' +
-        '<small>' + UI.euro(t.disponibile + t.future) + ' − ' + UI.euro(t.attivi) + '</small></div>' +
+      '<div class="bil-saldo ' + (ok ? 'ok' : 'ko') + '">' +
+        '<span class="lab">Balance<small>entrate − uscite</small></span>' +
+        '<span class="pill"><i aria-hidden="true">' + (ok ? '✓' : '!') + '</i>' + (balance > 0.005 ? '+' : balance < -0.005 ? '−' : '') + UI.euro(Math.abs(balance)) + '</span>' +
+      '</div>' +
     '</section>' +
     '<button type="button" class="immobilizzato" id="apri-immob">' +
       '<span class="im-icona" aria-hidden="true"><svg viewBox="0 0 24 24" width="22" height="22"><path d="M3 10.5 12 4l9 6.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg></span>' +
