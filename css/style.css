@@ -691,3 +691,18 @@ h2.primo { margin-top: 0; }
 .mia-partecipazione { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin: 14px 0; padding: 10px 14px; border-radius: 12px; background: var(--bg); border: 1px solid var(--line); }
 .mia-partecipazione span { display: block; }
 .mia-partecipazione b { font-size: 16px; }
+
+/* sezioni collassabili della cassa */
+.sezione-cassa { background: var(--card); border: 1px solid var(--line); border-radius: 16px; margin-bottom: 10px; }
+.sezione-cassa summary { display: flex; align-items: center; gap: 10px; padding: 14px 16px; cursor: pointer; list-style: none; }
+.sezione-cassa summary::-webkit-details-marker { display: none; }
+.sezione-cassa summary h2 { margin: 0; font-size: 17px; flex: none; }
+.sezione-cassa .riassunto { flex: 1; min-width: 0; text-align: right; font-size: 13px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sezione-cassa .freccia { font-size: 22px; line-height: 1; color: var(--muted); transition: transform .2s; }
+.sezione-cassa[open] .freccia { transform: rotate(90deg); }
+.sezione-cassa[open] summary { border-bottom: 1px solid var(--line); }
+.sezione-corpo { padding: 12px 12px 14px; }
+.sezione-corpo > .tabella-wrap { margin-bottom: 0; }
+.sezione-corpo > p:first-child { margin-top: 0; }
+.azioni-sezione-cassa { display: flex; justify-content: flex-end; margin-bottom: 10px; }
+.sezione-corpo .rate { margin-bottom: 0; }

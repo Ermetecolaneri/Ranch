@@ -100,6 +100,10 @@
     location.hash = '#/' + elenco[j];
   }, { passive: true });
 
+  // al ricaricamento si riparte sempre dall'alto (il browser non prova a ripristinare lo scroll)
+  try { if ('scrollRestoration' in history) history.scrollRestoration = 'manual'; } catch (e) {}
+  window.addEventListener('pageshow', function () { window.scrollTo(0, 0); });
+
   if (RanchAPI.demo) document.getElementById('demo-banner').hidden = false;
   window.addEventListener('hashchange', route);
 

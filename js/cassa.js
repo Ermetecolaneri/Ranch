@@ -154,7 +154,7 @@ window.Cassa = (function () {
       var primaMia = c.rate.filter(function (r) { return r.visibile !== false && r.soci.some(function (x) { return x.id === io && !x.pagataIl; }); })[0];
       view.innerHTML =
         bilancio(t) +
-        '<h2>Flusso di cassa</h2>' +
+        sezione('flusso', 'Flusso di cassa', t.mesi.length ? plurale(t.mesi.length, 'mese', 'mesi') + ' · saldo ' + UI.euro(t.disponibile) : 'nessun movimento') +
         (t.mesi.length ?
           '<div class="tabella-wrap"><table class="tabella">' +
             '<thead><tr><th>Mese</th><th class="n">Entrate</th><th class="n">Uscite</th><th class="n">Saldo</th></tr></thead><tbody>' +
@@ -168,9 +168,9 @@ window.Cassa = (function () {
             '</tbody><tfoot><tr><td>Totale</td><td class="n">' + UI.euro(t.entrate) + '</td><td class="n">' + (t.uscite ? '−' + UI.euro(t.uscite) : '—') +
             '</td><td class="n"><b>' + UI.euro(t.disponibile) + '</b></td></tr></tfoot>' +
           '</table></div>'
-          : '<p class="muted">Nessun movimento di cassa.</p>') +
+          : '<p class="muted">Nessun movimento di cassa.</p>') + '</div></details>' +
 
-        '<h2>Progetti in corso</h2>' +
+        sezione('incorso', 'Progetti in corso', t.inCorso.length + ' · bloccati ' + UI.euro(t.bloccato) + ' / ' + UI.euro(t.attivi)) +
         '<p class="muted small">Le quote comprate restano bloccate nel progetto finché è finanziato al 100% e passa in esecuzione.</p>' +
         (t.inCorso.length ?
           '<div class="tabella-wrap"><table class="tabella">' +
@@ -187,9 +187,9 @@ window.Cassa = (function () {
             '</tbody><tfoot><tr><td>Totale</td><td></td><td class="n"><b>' + UI.euro(t.bloccato) + '</b><span class="sotto-voce">su ' +
               UI.euro(t.inCorso.reduce(function (s, x) { return s + num(x.totale); }, 0)) + '</span></td>' + (admin ? '<td></td>' : '') + '</tr></tfoot>' +
           '</table></div>'
-          : '<p class="muted">Nessun progetto in raccolta.</p>') +
+          : '<p class="muted">Nessun progetto in raccolta.</p>') + '</div></details>' +
 
-        '<h2>Progetti realizzati</h2>' +
+        sezione('realizzati', 'Progetti realizzati', t.fatti.length ? t.fatti.length + ' · ' + UI.euro(t.uscite) : 'nessuno') +
         (t.fatti.length ?
           '<div class="tabella-wrap"><table class="tabella">' +
             '<thead><tr><th>Progetto</th><th class="n">Pagato</th></tr></thead><tbody>' +
@@ -200,13 +200,16 @@ window.Cassa = (function () {
                 '<td class="n"><b>' + UI.euro(x.totale) + '</b></td></tr>';
             }).join('') +
             '</tbody></table></div>'
-          : '<p class="muted">Ancora nessuno: un progetto esce dalla cassa quando passa in esecuzione.</p>') +
+          : '<p class="muted">Ancora nessuno: un progetto esce dalla cassa quando passa in esecuzione.</p>') + '</div></details>' +
 
-        '<div class="titolo-azione"><h2>Rate</h2>' +
-          (admin ? '<button type="button" class="btn primario piccolo" id="nuova-rata">+ Nuova rata</button>' : '') + '</div>' +
+        sezione('rate', 'Rate', plurale(c.rate.length, 'rata', 'rate') + ' · da incassare ' + UI.euro(t.future)) +
+          (admin ? '<div class="azioni-sezione-cassa"><button type="button" class="btn primario piccolo" id="nuova-rata">+ Nuova rata</button></div>' : '') +
         (c.rate.length ? '<div class="rate">' + c.rate.map(function (r) { return rataHtml(r, admin, io, r === primaMia); }).join('') + '</div>'
-          : '<p class="muted">Nessuna rata.</p>');
+          : '<p class="muted">Nessuna rata.</p>') + '</div></details>';
 
+      view.querySelectorAll('.sezione-cassa').forEach(function (d) {
+        d.addEventListener('toggle', function () { sezioniAperte[d.getAttribute('data-sez')] = d.open; });
+      });
       view.querySelectorAll('[data-modp]').forEach(function (bt) {
         bt.addEventListener('click', function () {
           var x = c.progetti.filter(function (y) { return y.id === bt.getAttribute('data-modp'); })[0];
@@ -234,6 +237,14 @@ window.Cassa = (function () {
         });
       });
     }).catch(function (e) { view.innerHTML = UI.errore(e); });
+  }
+
+  // sezioni collassabili (chiuse all'inizio, ricordano se le hai aperte)
+  var sezioniAperte = {};
+  function sezione(id, titolo, riassunto) {
+    return '<details class="sezione-cassa" data-sez="' + id + '"' + (sezioniAperte[id] ? ' open' : '') + '>' +
+      '<summary><h2>' + esc(titolo) + '</h2><span class="riassunto">' + riassunto + '</span><span class="freccia" aria-hidden="true">›</span></summary>' +
+      '<div class="sezione-corpo">';
   }
 
   function rataHtml(r, admin, io, aperta) {
