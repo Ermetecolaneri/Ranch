@@ -52,40 +52,28 @@ window.Cassa = (function () {
              quadra: Math.abs(disponibile - (num(c.creditoLibero) + bloccato)) < 0.005 };
   }
 
-  // disponibile + rate future − progetti attivi = quello che resta (deve tornare)
+  // tutti i + (disponibile, rate future, capitale immobilizzato) − costi (progetti attivi) = balance
   function bilancio(t) {
-    var margine = t.disponibile + t.future - t.attivi, ok = margine >= -0.005;
-    var libero = Math.max(0, t.disponibile - t.bloccato), daRacc = Math.max(0, t.attivi - t.bloccato);
-    var scala = Math.max(t.disponibile + t.future, t.attivi, 1);
-    function seg(v, cls, titolo) {
-      return v > 0.005 ? '<span class="seg ' + cls + '" style="width:' + (v / scala * 100).toFixed(2) + '%" title="' + esc(titolo + ': ' + UI.euro(v)) + '"></span>' : '';
-    }
+    var immob = t.fatti.reduce(function (s, x) { return s + num(x.totale); }, 0);
+    var piu = t.disponibile + t.future + immob, balance = piu - t.attivi, ok = balance >= -0.005;
     var pctBl = t.attivi > 0 ? Math.round(t.bloccato / t.attivi * 100) : 0;
+    var nChiusi = t.fatti.filter(function (x) { return x.stato === 'chiuso'; }).length, nEsec = t.fatti.length - nChiusi;
     return '<section class="bilancio" aria-label="Bilancio della cassa">' +
-      '<div class="eq">' +
+      '<div class="bil-piu">' +
         '<div class="eq-box disp"><span>Disponibile</span><strong>' + UI.euro(t.disponibile) + '</strong><small>in cassa ora</small></div>' +
         '<div class="eq-box fut"><i class="op">+</i><span>Rate future</span><strong>' + UI.euro(t.future) + '</strong>' +
-          (t.scadute > 0 ? '<small class="neg">' + UI.euro(t.scadute) + ' scadute</small>' : '<small>ancora da incassare</small>') + '</div>' +
-        '<div class="eq-box prog"><i class="op">−</i><span>Progetti attivi</span><strong>' + UI.euro(t.attivi) + '</strong>' +
-          '<small>bloccati <b>' + UI.euro(t.bloccato) + '</b> / ' + UI.euro(t.attivi) + '</small>' +
-          '<span class="mini-barra"><span style="width:' + pctBl + '%"></span></span></div>' +
-        '<div class="eq-box ris ' + (ok ? 'ok' : 'ko') + '"><i class="op">=</i><span>' + (ok ? 'Resta in cassa' : 'Mancano') + '</span>' +
-          '<strong>' + (ok ? (margine > 0.005 ? '+' : '') + UI.euro(margine) : UI.euro(-margine)) + '</strong>' +
-          '<small>' + (ok ? (margine > 0.005 ? 'fondocassa a progetti fatti' : 'tutto torna a zero') : 'le rate non bastano per i progetti') + '</small></div>' +
+          (t.scadute > 0 ? '<small class="neg">' + UI.euro(t.scadute) + ' scadute</small>' : '<small>da incassare</small>') + '</div>' +
+        '<div class="eq-box immob"><i class="op">+</i><span>Immobilizzato</span><strong>' + UI.euro(immob) + '</strong>' +
+          '<small>' + (t.fatti.length ? [nChiusi ? plurale(nChiusi, 'progetto chiuso', 'progetti chiusi') : '', nEsec ? nEsec + ' in esecuzione' : ''].filter(Boolean).join(' · ') : 'nessun progetto realizzato') + '</small></div>' +
       '</div>' +
-      (scala > 1 ?
-        '<div class="barre">' +
-          '<div class="riga"><span class="lab">Soldi</span><div class="bar">' +
-            seg(t.bloccato, 'bl', 'Bloccato nei progetti') + seg(libero, 'lib', 'Disponibile libero') + seg(t.future, 'fut', 'Rate future') + '</div></div>' +
-          '<div class="riga"><span class="lab">Progetti</span><div class="bar">' +
-            seg(t.bloccato, 'bl', 'Bloccato nei progetti') + seg(daRacc, 'racc', 'Da raccogliere') +
-            (ok && margine > 0.005 ? seg(margine, 'marg', 'Resta in cassa') : '') + '</div></div>' +
-          '<div class="legenda">' +
-            '<span><i class="sw bl"></i>Bloccato</span><span><i class="sw lib"></i>Disponibile libero</span>' +
-            '<span><i class="sw fut"></i>Rate future</span><span><i class="sw racc"></i>Da raccogliere</span>' +
-            (ok && margine > 0.005 ? '<span><i class="sw marg"></i>Resta</span>' : '') +
-          '</div>' +
-        '</div>' : '') +
+      '<div class="bil-meno">' +
+        '<div class="eq-box costi"><i class="op">−</i><span>Costi · progetti attivi</span><strong>' + UI.euro(t.attivi) + '</strong>' +
+          '<small>' + plurale(t.inCorso.length, 'progetto', 'progetti') + ' in raccolta · bloccati <b>' + UI.euro(t.bloccato) + '</b> / ' + UI.euro(t.attivi) + '</small>' +
+          '<span class="mini-barra"><span style="width:' + pctBl + '%"></span></span></div>' +
+      '</div>' +
+      '<div class="bil-tot ' + (ok ? 'ok' : 'ko') + '"><i class="op">=</i>' +
+        '<span>Balance</span><strong>' + (balance > 0.005 ? '+' : balance < -0.005 ? '−' : '') + UI.euro(Math.abs(balance)) + '</strong>' +
+        '<small>' + UI.euro(piu) + ' − ' + UI.euro(t.attivi) + '</small></div>' +
     '</section>';
   }
 
