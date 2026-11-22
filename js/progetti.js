@@ -56,7 +56,7 @@ window.Progetti = (function () {
         (d.progetti.length ?
           '<div class="griglia-progetti">' + d.progetti.map(function (p) {
             var top = p === amato;
-            return '<a class="card-progetto' + (top ? ' amato' : '') + '" href="#/progetti/' + esc(p.id) + '">' +
+            return (top ? '<div class="fiamme-wrap">' : '') + '<a class="card-progetto' + (top ? ' amato' : '') + '" href="#/progetti/' + esc(p.id) + '">' +
               '<div class="foto-box">' + foto(p, 'foto-progetto') + badge(p) + bottoneCuore(p) +
                 (top ? '<span class="nastro-amato">🔥 Il più amato</span>' : '') + '</div>' +
               '<div class="corpo">' +
@@ -66,9 +66,10 @@ window.Progetti = (function () {
                 '<p class="soldi"><b>' + UI.euro(p.raccolto) + '</b> <span class="muted">/ ' + UI.euro(p.totale) + '</span></p>' +
                 '<p class="meta"><span>' + plurale(p.sostenitori, 'sostenitore', 'sostenitori') + '</span><span>' + esc(scadenza(p)) + '</span></p>' +
               '</div>' +
-            '</a>';
+            '</a>' + (top ? '</div>' : '');
           }).join('') + '</div>'
           : '<div class="vuoto"><h2>Nessun progetto per ora</h2><p class="muted">Il primo progetto del ranch può essere il tuo.</p></div>');
+      if (window.Fiamme) Fiamme.accendi(view.querySelector('.fiamme-wrap'));
       var b = view.querySelector('#nuovo');
       if (b) b.addEventListener('click', function () { form(ctx, null); });
       view.querySelector('#apri-grafico').addEventListener('click', Grafico.apri);

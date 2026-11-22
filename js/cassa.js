@@ -150,8 +150,6 @@ window.Cassa = (function () {
     view.innerHTML = UI.caricamento();
     RanchAPI.getCassa().then(function (c) {
       var t = calcola(c), ora = meseAttuale(), admin = !!(ctx.me && ctx.me.admin), io = ctx.me && ctx.me.id;
-      // si apre solo la prima rata che devo ancora pagare
-      var primaMia = c.rate.filter(function (r) { return r.visibile !== false && r.soci.some(function (x) { return x.id === io && !x.pagataIl; }); })[0];
       view.innerHTML =
         bilancio(t) +
         sezione('flusso', 'Flusso di cassa', t.mesi.length ? plurale(t.mesi.length, 'mese', 'mesi') + ' · saldo ' + UI.euro(t.disponibile) : 'nessun movimento') +
@@ -204,9 +202,12 @@ window.Cassa = (function () {
 
         sezione('rate', 'Rate', plurale(c.rate.length, 'rata', 'rate') + ' · da incassare ' + UI.euro(t.future)) +
           (admin ? '<div class="azioni-sezione-cassa"><button type="button" class="btn primario piccolo" id="nuova-rata">+ Nuova rata</button></div>' : '') +
-        (c.rate.length ? '<div class="rate">' + c.rate.map(function (r) { return rataHtml(r, admin, io, r === primaMia); }).join('') + '</div>'
+        (c.rate.length ? '<div class="rate">' + c.rate.map(function (r) { return rataHtml(r, admin, io, !!rateAperte[r.id]); }).join('') + '</div>'
           : '<p class="muted">Nessuna rata.</p>') + '</div></details>';
 
+      view.querySelectorAll('details.rata').forEach(function (d) {
+        d.addEventListener('toggle', function () { rateAperte[d.getAttribute('data-rata')] = d.open; });
+      });
       view.querySelectorAll('.sezione-cassa').forEach(function (d) {
         d.addEventListener('toggle', function () { sezioniAperte[d.getAttribute('data-sez')] = d.open; });
       });
@@ -240,7 +241,7 @@ window.Cassa = (function () {
   }
 
   // sezioni collassabili (chiuse all'inizio, ricordano se le hai aperte)
-  var sezioniAperte = {};
+  var sezioniAperte = {}, rateAperte = {};
   function sezione(id, titolo, riassunto) {
     return '<details class="sezione-cassa" data-sez="' + id + '"' + (sezioniAperte[id] ? ' open' : '') + '>' +
       '<summary><h2>' + esc(titolo) + '</h2><span class="riassunto">' + riassunto + '</span><span class="freccia" aria-hidden="true">›</span></summary>' +
@@ -250,7 +251,7 @@ window.Cassa = (function () {
   function rataHtml(r, admin, io, aperta) {
     var pagati = r.soci.filter(function (s) { return s.pagataIl; }).length, n = r.soci.length;
     var scaduta = r.scadenza < oggi() && pagati < n, visibile = r.visibile !== false;
-    return '<details class="rata' + (pagati === n ? ' saldata' : '') + (visibile ? '' : ' nascosta') + '"' + (aperta ? ' open' : '') + '>' +
+    return '<details class="rata' + (pagati === n ? ' saldata' : '') + (visibile ? '' : ' nascosta') + '" data-rata="' + esc(r.id) + '"' + (aperta ? ' open' : '') + '>' +
       '<summary><span class="rata-titolo"><b>' + esc(r.titolo) + '</b>' +
         '<span class="sotto-voce">' + UI.euro(r.importo) + ' a testa · scade ' + esc(UI.data(r.scadenza)) +
         (!visibile ? ' · non visibile' : scaduta ? ' · <span class="neg">scaduta</span>' : '') + '</span></span>' +
