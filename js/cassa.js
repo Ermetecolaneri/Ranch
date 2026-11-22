@@ -82,7 +82,10 @@ window.Cassa = (function () {
       '</div>' +
       '<div class="bil-col uscite">' +
         '<header><span class="ico">' + OUT + '</span><span class="tit">Uscite<small>costo stimato · ' + plurale(t.inCorso.length, 'progetto', 'progetti') + ' in raccolta</small></span><strong>' + UI.euro(uscite) + '</strong></header>' +
-        '<div class="bil-bar traccia" style="width:' + w(uscite) + '"><span class="s pieno" style="width:' + pctBl + '%" title="' + esc('Bloccati: ' + UI.euro(t.bloccato)) + '"></span></div>' +
+        '<div class="traccia-wrap" style="width:' + w(uscite) + '">' +
+          '<div class="bil-bar traccia"><span class="s pieno" style="width:' + pctBl + '%" title="' + esc('Bloccati: ' + UI.euro(t.bloccato)) + '"></span></div>' +
+          checkpoint(t.inCorso, uscite) +
+        '</div>' +
         '<p class="rapporto"><b>' + UI.euro(t.bloccato) + '</b> bloccati / ' + UI.euro(uscite) + ' da bloccare per i progetti <span class="pct">' + pctBl + '%</span></p>' +
       '</div>' +
       '<div class="bil-saldo ' + (ok ? 'ok' : 'ko') + '">' +
@@ -96,6 +99,30 @@ window.Cassa = (function () {
         '<small>' + (chiusi.length ? plurale(chiusi.length, 'progetto chiuso', 'progetti chiusi') : 'nessun progetto chiuso') + '</small></span>' +
       '<span class="im-cta">Vedi ›</span>' +
     '</button>';
+  }
+
+  // sigla: iniziali delle prime 3 parole + ultimo carattere ("Valtinsu EM5 Ultra #1" → VEU1)
+  function sigla(titolo) {
+    var parole = String(titolo).trim().split(/\s+/), t = String(titolo).trim();
+    return (parole.slice(0, 3).map(function (p) { return p.charAt(0); }).join('') + t.charAt(t.length - 1)).toUpperCase();
+  }
+  // triangolini sulla barra delle uscite: un checkpoint alla fine di ogni progetto, in ordine di scadenza
+  function checkpoint(progetti, totale) {
+    if (!(totale > 0) || !progetti.length) return '';
+    var lista = progetti.slice().sort(function (a, b) { return String(a.scadenza).localeCompare(String(b.scadenza)) || a.titolo.localeCompare(b.titolo, 'it'); });
+    var cum = 0, ultimi = [-99, -99, -99];
+    var html = lista.map(function (x) {
+      cum += num(x.totale);
+      var pos = Math.min(100, cum / totale * 100), riga = 0;
+      while (riga < 2 && pos - ultimi[riga] < 11) riga++;
+      ultimi[riga] = pos;
+      var fatto = num(x.raccolto) >= num(x.totale) - 0.005;
+      return '<span class="cp riga' + riga + (fatto ? ' fatto' : '') + '" style="left:' + pos.toFixed(2) + '%" title="' +
+        esc(x.titolo + ' · scade ' + UI.data(x.scadenza) + ' · ' + UI.euro(x.totale) + ' (progressivo ' + UI.euro(cum) + ')') + '">' +
+        '<i></i><span>' + esc(sigla(x.titolo)) + '</span></span>';
+    }).join('');
+    var righe = Math.max.apply(null, ultimi.map(function (v, i) { return v > -99 ? i : 0; }));
+    return '<div class="checkpoint r' + righe + '">' + html + '</div>';
   }
 
   function apriImmobilizzato(t) {

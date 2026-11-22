@@ -667,3 +667,20 @@ h2.primo { margin-top: 0; }
 .rapporto { margin: 8px 0 4px; font-size: 13px; color: var(--muted); display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; }
 .rapporto b { color: var(--out); font-size: 15px; }
 .rapporto .pct { margin-left: auto; font-weight: 700; color: var(--out); background: var(--out-t); border-radius: 99px; padding: 1px 8px; font-size: 12px; }
+
+/* checkpoint dei progetti sulla barra delle uscite */
+.traccia-wrap { position: relative; min-width: 40px; }
+.traccia-wrap .bil-bar { margin-bottom: 0; }
+.checkpoint { position: relative; height: 26px; }
+.checkpoint.r1 { height: 42px; }
+.checkpoint.r2 { height: 58px; }
+.cp { position: absolute; top: 2px; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; cursor: default; }
+.cp i { width: 0; height: 0; border-left: 5px solid transparent; border-right: 5px solid transparent; border-bottom: 7px solid var(--out); }
+.cp span { font-size: 10px; font-weight: 700; letter-spacing: .02em; color: var(--muted); line-height: 1; margin-top: 2px; white-space: nowrap; }
+.cp.riga1 span { margin-top: 18px; }
+.cp.riga2 span { margin-top: 34px; }
+.cp.riga1::after, .cp.riga2::after { content: ''; position: absolute; top: 9px; left: 50%; width: 1px; background: var(--line); }
+.cp.riga1::after { height: 14px; }
+.cp.riga2::after { height: 30px; }
+.cp.fatto i { border-bottom-color: var(--in); }
+.cp.fatto span { color: var(--in); }
