@@ -47,7 +47,7 @@
   if (D && !D.rate) {
     D.rate = [
       { id: 'r01', titolo: 'Quota dicembre', importo: 25, scadenza: '2026-12-31', soci: {} },
-      { id: 'r02', titolo: 'Quota gennaio', importo: 25, scadenza: '2027-01-31', soci: {} } ];
+      { id: 'r02', titolo: 'Quota gennaio', importo: 25, scadenza: '2027-01-31', visibile: false, soci: {} } ];
     D.soci.filter(function (x) { return x.attivo; }).forEach(function (x, i) {
       D.rate.forEach(function (r) { r.soci[x.id] = null; });
       if (i < 3) {
@@ -292,7 +292,7 @@
     },
     getRateSocio: function (id) {
       return attesa(D.rate.filter(function (r) { return id in r.soci; }).map(function (r) {
-        return { id: r.id, titolo: r.titolo, importo: r.importo, scadenza: r.scadenza, pagataIl: r.soci[id] };
+        return { id: r.id, titolo: r.titolo, importo: r.importo, scadenza: r.scadenza, visibile: r.visibile !== false, pagataIl: r.soci[id] };
       }).sort(function (a, b) { return (!!a.pagataIl - !!b.pagataIl) || (a.scadenza < b.scadenza ? -1 : 1); }));
     },
     rataPaga: function (k, idr, ids) {
@@ -300,6 +300,7 @@
       if (s.id !== ids && !s.admin) return rifiuto('Puoi segnare come pagate solo le tue rate.');
       var r = D.rate.filter(function (x) { return x.id === idr; })[0];
       if (!r) return rifiuto('Rata non trovata.');
+      if (r.visibile === false) return rifiuto('Questa rata non è ancora aperta: non si può pagare.');
       if (!(ids in r.soci)) return rifiuto('Questa rata non è assegnata a questo socio.');
       if (r.soci[ids]) return rifiuto('Questa rata è già segnata come pagata.');
       r.soci[ids] = new Date().toISOString();
@@ -340,6 +341,13 @@
       }
       r.titolo = d.titolo.trim(); r.importo = Number(d.importo); r.scadenza = d.scadenza;
       d.soci.forEach(function (x) { if (!(x in r.soci)) r.soci[x] = null; });
+      return attesa(rataPubblica(r));
+    },
+    adminRataVisibile: function (k, id, visibile) {
+      var a = perCodice(k); if (!a || !a.admin) return rifiuto('Funzione riservata all\'admin.');
+      var r = D.rate.filter(function (x) { return x.id === id; })[0];
+      if (!r) return rifiuto('Rata non trovata.');
+      r.visibile = !!visibile;
       return attesa(rataPubblica(r));
     },
     adminRataElimina: function (k, id) {
@@ -512,7 +520,7 @@
   };
 
   function rataPubblica(r) {
-    return { id: r.id, titolo: r.titolo, importo: r.importo, scadenza: r.scadenza,
+    return { id: r.id, titolo: r.titolo, importo: r.importo, scadenza: r.scadenza, visibile: r.visibile !== false,
       soci: Object.keys(r.soci).map(function (id) { var x = D.soci.filter(function (y) { return y.id === id; })[0] || { nome: '?' };
         return { id: id, nome: x.nome, foto: x.foto || '', pagataIl: r.soci[id] }; })
         .sort(function (a, b) { return a.nome.localeCompare(b.nome, 'it'); }) };
@@ -608,6 +616,7 @@
       return rpc('admin_rata_salva', { p_k: k, p_id: d.id || null, p_titolo: d.titolo, p_importo: d.importo, p_scadenza: d.scadenza, p_soci: d.soci });
     },
     adminRataElimina: function (k, id) { return rpc('admin_rata_elimina', { p_k: k, p_id: id }); },
+    adminRataVisibile: function (k, id, visibile) { return rpc('admin_rata_visibile', { p_k: k, p_id: id, p_visibile: !!visibile }); },
 
     // ----- eventi -----
     getEventi: function (k) {

@@ -52,7 +52,7 @@ window.Cassa = (function () {
     RanchAPI.getCassa().then(function (c) {
       var t = calcola(c), ora = meseAttuale(), admin = !!(ctx.me && ctx.me.admin), io = ctx.me && ctx.me.id;
       // si apre solo la prima rata che devo ancora pagare
-      var primaMia = c.rate.filter(function (r) { return r.soci.some(function (x) { return x.id === io && !x.pagataIl; }); })[0];
+      var primaMia = c.rate.filter(function (r) { return r.visibile !== false && r.soci.some(function (x) { return x.id === io && !x.pagataIl; }); })[0];
       view.innerHTML =
         '<div class="kpi-griglia tre">' +
           '<div class="kpi evidenza"><span>Disponibile</span><strong>' + UI.euro(t.disponibile) + '</strong></div>' +
@@ -134,21 +134,31 @@ window.Cassa = (function () {
         });
       });
       collegaPagamenti(view, c.rate, ctx, function () { mostra(view, ctx); });
+      view.querySelectorAll('[data-vis]').forEach(function (bt) {
+        bt.addEventListener('click', function () {
+          var v = bt.getAttribute('data-vis').split('|');
+          bt.disabled = true;
+          RanchAPI.adminRataVisibile(ctx.k, v[0], v[1] === '1').then(function () {
+            UI.toast(v[1] === '1' ? 'Rata visibile: ora si può pagare' : 'Rata non visibile');
+            mostra(view, ctx);
+          }).catch(function (e) { bt.disabled = false; UI.toast(e.message); });
+        });
+      });
     }).catch(function (e) { view.innerHTML = UI.errore(e); });
   }
 
   function rataHtml(r, admin, io, aperta) {
     var pagati = r.soci.filter(function (s) { return s.pagataIl; }).length, n = r.soci.length;
-    var scaduta = r.scadenza < oggi() && pagati < n;
-    return '<details class="rata' + (pagati === n ? ' saldata' : '') + '"' + (aperta ? ' open' : '') + '>' +
+    var scaduta = r.scadenza < oggi() && pagati < n, visibile = r.visibile !== false;
+    return '<details class="rata' + (pagati === n ? ' saldata' : '') + (visibile ? '' : ' nascosta') + '"' + (aperta ? ' open' : '') + '>' +
       '<summary><span class="rata-titolo"><b>' + esc(r.titolo) + '</b>' +
         '<span class="sotto-voce">' + UI.euro(r.importo) + ' a testa · scade ' + esc(UI.data(r.scadenza)) +
-        (scaduta ? ' · <span class="neg">scaduta</span>' : '') + '</span></span>' +
+        (!visibile ? ' · non visibile' : scaduta ? ' · <span class="neg">scaduta</span>' : '') + '</span></span>' +
         '<span class="rata-stato"><b>' + pagati + '/' + n + '</b><span class="sotto-voce">' + UI.euro(pagati * num(r.importo)) + ' di ' + UI.euro(n * num(r.importo)) + '</span></span>' +
       '</summary>' +
       '<ul class="elenco rata-soci">' + r.soci.map(function (s) {
         var azione = '';
-        if (!s.pagataIl && (admin || s.id === io))
+        if (!s.pagataIl && visibile && (admin || s.id === io))
           azione = '<button type="button" class="btn primario piccolo" data-paga="' + esc(r.id) + '|' + esc(s.id) + '">' + (s.id === io ? 'L\'ho pagata' : 'Segna pagata') + '</button>';
         else if (s.pagataIl && admin)
           azione = '<button type="button" class="btn piccolo" data-annulla="' + esc(r.id) + '|' + esc(s.id) + '">Annulla</button>';
@@ -156,7 +166,8 @@ window.Cassa = (function () {
           '<span class="sotto-voce">' + (s.pagataIl ? '<span class="pos">✓ pagata il ' + esc(UI.data(s.pagataIl)) + '</span>' : 'da pagare') + '</span></span></span>' +
           azione + '</li>';
       }).join('') + '</ul>' +
-      (admin ? '<div class="rata-admin"><button type="button" class="btn piccolo" data-modr="' + esc(r.id) + '">Modifica rata</button></div>' : '') +
+      (admin ? '<div class="rata-admin"><button type="button" class="btn piccolo" data-modr="' + esc(r.id) + '">Modifica rata</button>' +
+        '<button type="button" class="btn piccolo" data-vis="' + esc(r.id) + '|' + (visibile ? '0' : '1') + '">' + (visibile ? 'Rendi non visibile' : 'Rendi visibile') + '</button></div>' : '') +
     '</details>';
   }
 

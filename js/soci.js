@@ -50,10 +50,11 @@ window.Soci = (function () {
             '<h2>Rate</h2>' +
             (pendenti.length ?
               '<ul class="elenco rate-socio">' + pendenti.map(function (r) {
-                return '<li><span><b>' + esc(r.titolo) + '</b><span class="sotto-voce">scade ' + esc(UI.data(r.scadenza)) +
-                  (r.scadenza < oggiIso ? ' · <span class="neg">scaduta</span>' : '') + '</span></span>' +
+                var vis = r.visibile !== false;
+                return '<li' + (vis ? '' : ' class="nascosta"') + '><span><b>' + esc(r.titolo) + '</b><span class="sotto-voce">scade ' + esc(UI.data(r.scadenza)) +
+                  (!vis ? ' · non ancora aperta' : r.scadenza < oggiIso ? ' · <span class="neg">scaduta</span>' : '') + '</span></span>' +
                   '<span class="rata-azione"><b>' + UI.euro(r.importo) + '</b>' +
-                  (mia || admin ? '<button type="button" class="btn primario piccolo" data-paga="' + esc(r.id) + '|' + esc(s.id) + '">' + (mia ? 'Pagata' : 'Segna pagata') + '</button>' : '') +
+                  (vis && (mia || admin) ? '<button type="button" class="btn primario piccolo" data-paga="' + esc(r.id) + '|' + esc(s.id) + '">' + (mia ? 'Pagata' : 'Segna pagata') + '</button>' : '') +
                   '</span></li>';
               }).join('') + '</ul>' +
               '<p class="muted small">Da pagare: <b>' + UI.euro(pendenti.reduce(function (t, r) { return t + Number(r.importo); }, 0)) + '</b></p>'

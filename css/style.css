@@ -535,3 +535,6 @@ h2.primo { margin-top: 0; }
 .scelta-soci legend { font-size: 13px; color: var(--muted); padding: 0 4px; }
 .scelta-soci label { display: flex; align-items: center; gap: 6px; font-size: 14px; }
 @media (max-width: 420px) { .scelta-soci { grid-template-columns: 1fr; } }
+.rata.nascosta, .rate-socio li.nascosta { opacity: .45; }
+.rata.nascosta summary { cursor: pointer; }
+.rata-admin { display: flex; gap: 8px; flex-wrap: wrap; }
