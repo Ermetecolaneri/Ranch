@@ -88,6 +88,9 @@ window.UI = (function () {
     return { sett: d.toLocaleDateString('it-IT', { weekday: 'short' }), giorno: d.getDate(), mese: d.toLocaleDateString('it-IT', { month: 'short' }) };
   }
 
+  // Joint: la fogliolina
+  function foglia(px) { return '<svg class="foglia" viewBox="0 0 24 24" width="' + (px || 16) + '" height="' + (px || 16) + '" aria-hidden="true"><g transform="translate(12 15.5)" fill="#3f8f3a"><path transform="rotate(0)" d="M0 0C1.9 -3.3 1.5 -8.2 0 -11.0C-1.5 -8.2 -1.9 -3.3 0 0Z"/><path transform="rotate(30)" d="M0 0C1.7 -2.9 1.4 -7.2 0 -9.6C-1.4 -7.2 -1.7 -2.9 0 0Z"/><path transform="rotate(-30)" d="M0 0C1.7 -2.9 1.4 -7.2 0 -9.6C-1.4 -7.2 -1.7 -2.9 0 0Z"/><path transform="rotate(62)" d="M0 0C1.5 -2.3 1.2 -5.7 0 -7.6C-1.2 -5.7 -1.5 -2.3 0 0Z"/><path transform="rotate(-62)" d="M0 0C1.5 -2.3 1.2 -5.7 0 -7.6C-1.2 -5.7 -1.5 -2.3 0 0Z"/><path transform="rotate(98)" d="M0 0C1.1 -1.4 0.9 -3.6 0 -4.8C-0.9 -3.6 -1.1 -1.4 0 0Z"/><path transform="rotate(-98)" d="M0 0C1.1 -1.4 0.9 -3.6 0 -4.8C-0.9 -3.6 -1.1 -1.4 0 0Z"/><path d="M-.5 0h1v7h-1z"/></g></svg>'; }
+  function joint(n, px) { return '<span class="joint-pill">' + foglia(px || 14) + '<b>' + (Number(n) || 0).toLocaleString('it-IT') + '</b></span>'; }
   function toast(msg) {
     var t = document.createElement('div');
     t.className = 'toast';
@@ -103,6 +106,6 @@ window.UI = (function () {
     return '<p class="errore pad">' + esc(msg) + '</p>';
   }
 
-  return { esc: esc, avatar: avatar, numero: numero, FONT_NUMERO: FONT_NUMERO, COLORI_NUMERO: COLORI_NUMERO,euro: euro, euroSegno: euroSegno, data: data, meseAnno: meseAnno,
+  return { foglia: foglia, joint: joint, esc: esc, avatar: avatar, numero: numero, FONT_NUMERO: FONT_NUMERO, COLORI_NUMERO: COLORI_NUMERO,euro: euro, euroSegno: euroSegno, data: data, meseAnno: meseAnno,
            intervallo: intervallo, giornoBreve: giornoBreve, toast: toast, caricamento: caricamento, errore: errore };
 })();

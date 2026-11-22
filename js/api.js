@@ -67,6 +67,21 @@
       stato: 'programmato', dataInizio: '2026-11-29', dataFine: '2026-11-29', creatoIl: '2026-11-01T10:00:00', date: [] },
     { id: 'e03', titolo: 'Inaugurazione ranch', descrizione: 'Primo giro ufficiale e foto di gruppo.', foto: '',
       stato: 'programmato', dataInizio: '2026-10-04', dataFine: '2026-10-04', creatoIl: '2026-09-01T10:00:00', date: [] } ];
+  if (D && !D.joint) D.joint = { attivo: false, reward: { cuore: 10, quote_per_euro: 1, rata_in_tempo: 20, voto_evento: 5, progetto_proposto: 15, profilo_completo: 10 },
+    mov: [{ id: 1, socioId: 's02', punti: 100, azione: 'admin', descrizione: 'Bonus attività', fattoDa: 'admin', data: '2026-11-20T10:00:00' },
+          { id: 2, socioId: 's04', punti: 40, azione: 'cuore', descrizione: 'Cuori sui progetti', fattoDa: 'auto', data: '2026-11-21T10:00:00' }] };
+  // credito Ranch: versato totale × (versato + Joint) / Σ(versato + Joint) − speso
+  function creditiRanch() {
+    var r = {}, vtot = 0, ptot = 0;
+    D.soci.forEach(function (x) { r[x.id] = { versato: 0, speso: 0, reale: 0, joint: 0 }; });
+    D.movimenti.forEach(function (m) { var x = r[m.socio]; if (!x) return; x.reale += m.importo;
+      if (m.tipo === 'accredito' || m.tipo === 'addebito') x.versato += m.importo; if (m.progetto) x.speso -= m.importo; });
+    D.joint.mov.forEach(function (m) { if (r[m.socioId]) r[m.socioId].joint += m.punti; });
+    Object.keys(r).forEach(function (id) { var x = r[id]; x.joint = Math.max(0, x.joint); x.peso = x.versato > 0 ? x.versato + x.joint : 0; vtot += x.versato; ptot += x.peso; });
+    Object.keys(r).forEach(function (id) { var x = r[id];
+      x.ranch = !D.joint.attivo || ptot <= 0 ? x.reale : Math.round((vtot * x.peso / ptot - x.speso) * 100) / 100; });
+    return r;
+  }
   function clone(x) { return JSON.parse(JSON.stringify(x)); }
   function attesa(v) { return new Promise(function (ok) { setTimeout(function () { ok(clone(v)); }, 150); }); }
   function rifiuto(msg) { return new Promise(function (_, ko) { setTimeout(function () { ko(errore(msg)); }, 150); }); }
@@ -83,11 +98,12 @@
     return s;
   }
   function pubblico(socio, s) {
-    var x = s[socio.id] || { credito: 0, investito: 0 };
+    var x = s[socio.id] || { credito: 0, investito: 0 }, r = creditiRanch()[socio.id];
     return { id: socio.id, nome: socio.nome, numeroGara: socio.numeroGara || null, bio: socio.bio || '',
              numeroFont: socio.numeroFont || 'corsa', numeroColore: socio.numeroColore || 'rosso',
              dataIngresso: socio.dataIngresso || '', foto: socio.foto || '',
-             credito: Math.round(x.credito * 100) / 100, investito: Math.round(x.investito * 100) / 100 };
+             credito: r.ranch, creditoReale: Math.round(x.credito * 100) / 100, versato: r.versato,
+             joint: D.joint.attivo ? r.joint : null, investito: Math.round(x.investito * 100) / 100 };
   }
   function perCodice(k) { return D.soci.filter(function (s) { return s.attivo && s.codice === k; })[0]; }
 
@@ -98,7 +114,7 @@
         .map(function (x) { return pubblico(x, s); })
         .sort(function (a, b) { return a.nome.localeCompare(b.nome, 'it'); });
       var credito = soci.reduce(function (t, x) { return t + x.credito; }, 0);
-      return attesa({ soci: soci, totali: { soci: soci.length, credito: credito } });
+      return attesa({ soci: soci, totali: { soci: soci.length, credito: credito }, jointAttivo: D.joint.attivo });
     },
     getSocio: function (id) {
       var socio = D.soci.filter(function (x) { return x.id === id && x.attivo; })[0];
@@ -125,8 +141,9 @@
     whoami: function (k) {
       var socio = perCodice(k);
       if (!socio) return attesa(null);
+      var pb = pubblico(socio, saldi(D.movimenti));
       return attesa({ id: socio.id, nome: socio.nome, foto: socio.foto || '', admin: !!socio.admin,
-                      credito: pubblico(socio, saldi(D.movimenti)).credito });
+                      credito: pb.credito, creditoReale: pb.creditoReale, versato: pb.versato, jointAttivo: D.joint.attivo, joint: pb.joint });
     },
     aggiornaProfilo: function (k, dati) {
       var socio = perCodice(k);
@@ -208,11 +225,41 @@
       if (!(quote >= 1)) return rifiuto('Scegli almeno una quota.');
       var resto = p.quoteTotali - quoteVendute(id);
       if (quote > resto) return rifiuto('Restano solo ' + resto + ' quote.');
-      var costo = quote * p.costoQuota, credito = saldi(D.movimenti)[s.id] ? saldi(D.movimenti)[s.id].credito : 0;
+      var costo = quote * p.costoQuota, credito = creditiRanch()[s.id].ranch;
       if (costo > credito) return rifiuto('Credito insufficiente: hai ' + UI.euro(credito) + ', servono ' + UI.euro(costo) + '.');
       D.movimenti.push({ id: 'm' + Date.now(), data: new Date().toISOString(), socio: s.id, tipo: 'acquisto', importo: -costo,
                          progetto: id, quote: quote, causale: quote + (quote === 1 ? ' quota' : ' quote'), messaggio: (messaggio || '').trim() });
       return attesa({ progetto: progettoPubblico(p), credito: credito - costo });
+    },
+    getJoint: function () {
+      if (!D.joint.attivo) return attesa({ attivo: false });
+      var c = creditiRanch();
+      return attesa({ attivo: true, classifica: D.soci.filter(function (x) { return x.attivo; }).map(function (x) {
+        var r = c[x.id]; return { id: x.id, nome: x.nome, foto: x.foto || '', numeroGara: x.numeroGara, numeroFont: x.numeroFont, numeroColore: x.numeroColore,
+          joint: r.joint, credito: r.ranch, versato: r.versato }; }).sort(function (a, b) { return b.joint - a.joint || a.nome.localeCompare(b.nome, 'it'); }) });
+    },
+    adminJoint: function (k) {
+      var a = perCodice(k); if (!a || !a.admin) return rifiuto('Funzione riservata all\'admin.');
+      var c = creditiRanch();
+      return attesa({ attivo: D.joint.attivo, reward: D.joint.reward,
+        soci: D.soci.filter(function (x) { return x.attivo; }).map(function (x) { var r = c[x.id];
+          return { id: x.id, nome: x.nome, foto: x.foto || '', joint: r.joint, versato: r.versato, credito: r.ranch, reale: r.reale }; })
+          .sort(function (a, b) { return b.joint - a.joint; }),
+        storico: D.joint.mov.slice().reverse().map(function (m) { return Object.assign({}, m, { socio: (D.soci.filter(function (x) { return x.id === m.socioId; })[0] || {}).nome }); }) });
+    },
+    adminJointConfig: function (k, attivo, reward) {
+      var a = perCodice(k); if (!a || !a.admin) return rifiuto('Funzione riservata all\'admin.');
+      for (var key in reward) if (!(Number(reward[key]) >= 0 && Number(reward[key]) <= 1000)) return rifiuto('Valore non valido per "' + key + '": da 0 a 1000.');
+      D.joint.attivo = !!attivo; D.joint.reward = reward;
+      return demo.adminJoint(k);
+    },
+    adminJointDai: function (k, socio, punti, causale) {
+      var a = perCodice(k); if (!a || !a.admin) return rifiuto('Funzione riservata all\'admin.');
+      if (!D.joint.attivo) return rifiuto('Accendi prima i Joint.');
+      if (!Number(punti)) return rifiuto('Punti non validi.');
+      if (!String(causale || '').trim()) return rifiuto('Scrivi una causale.');
+      D.joint.mov.push({ id: Date.now(), socioId: socio, punti: Number(punti), azione: 'admin', descrizione: causale, fattoDa: 'admin', data: new Date().toISOString() });
+      return attesa({ ok: true });
     },
     adminMessaggi: function (k) {
       var a = perCodice(k); if (!a || !a.admin) return rifiuto('Funzione riservata all\'admin.');
@@ -683,6 +730,10 @@
       return rpc('modifica_progetto', a).then(conFotoProgetto);
     },
     telegramStato: function (k) { return rpc('telegram_stato', { p_k: k }); },
+    getJoint: function () { return rpc('get_joint').then(function (d) { (d.classifica || []).forEach(conFoto); return d; }); },
+    adminJoint: function (k) { return rpc('admin_joint', { p_k: k }).then(function (d) { d.soci.forEach(conFoto); return d; }); },
+    adminJointConfig: function (k, attivo, reward) { return rpc('admin_joint_config', { p_k: k, p_attivo: attivo, p_reward: reward }); },
+    adminJointDai: function (k, socio, punti, causale) { return rpc('admin_joint_dai', { p_k: k, p_socio: socio, p_punti: punti, p_causale: causale }); },
     adminMessaggi: function (k) { return rpc('admin_messaggi', { p_k: k }).then(function (d) { d.soci.forEach(conFoto); return d; }); },
     adminMessaggioInvia: function (k, tipo, testo, soci) { return rpc('admin_messaggio_invia', { p_k: k, p_tipo: tipo, p_testo: testo, p_soci: soci }); },
     telegramCollega: function (k) { return rpc('telegram_collega', { p_k: k }); },

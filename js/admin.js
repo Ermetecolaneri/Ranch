@@ -1,7 +1,7 @@
 // Pagina admin: crediti, soci, storico. Visibile e utilizzabile solo dall'admin (riconosciuto dal link personale).
 window.Admin = (function () {
   var esc = UI.esc;
-  var SCHEDE = { crediti: 'Crediti', soci: 'Soci', storico: 'Storico', messaggi: 'Messaggi' };
+  var SCHEDE = { crediti: 'Crediti', soci: 'Soci', storico: 'Storico', messaggi: 'Messaggi', joint: 'Joint' };
   var TIPI = { accredito: 'Accredito', addebito: 'Addebito', acquisto: 'Acquisto', storno: 'Storno', rimborso: 'Rimborso' };
   var MESI = ['gennaio', 'febbraio', 'marzo', 'aprile', 'maggio', 'giugno', 'luglio', 'agosto', 'settembre', 'ottobre', 'novembre', 'dicembre'];
 
@@ -25,6 +25,7 @@ window.Admin = (function () {
       if (scheda === 'soci') soci(corpo, d, ctx, ricarica);
       if (scheda === 'storico') storico(corpo, d, ctx, ricarica);
       if (scheda === 'messaggi') messaggi(corpo, ctx);
+      if (scheda === 'joint') joint(corpo, ctx);
     }).catch(function (e) { view.innerHTML = UI.errore(e); });
   }
 
@@ -333,6 +334,100 @@ window.Admin = (function () {
     });
     return wrap;
   }
+  // ---------------- Joint ----------------
+  var AZIONI_JOINT = [
+    ['cuore', 'Cuore su un progetto', 'Joint'],
+    ['quote_per_euro', 'Quote comprate', 'Joint per ogni €'],
+    ['rata_in_tempo', 'Rata pagata entro la scadenza', 'Joint'],
+    ['voto_evento', 'Date votate per un evento', 'Joint'],
+    ['progetto_proposto', 'Progetto proposto', 'Joint'],
+    ['profilo_completo', 'Profilo completo (foto, numero e bio)', 'Joint, una volta']
+  ];
+  function joint(el, ctx) {
+    el.innerHTML = UI.caricamento();
+    RanchAPI.adminJoint(ctx.k).then(function (d) {
+      el.innerHTML =
+        '<div class="riquadro joint-toggle">' +
+          '<div><h2>' + UI.foglia(22) + ' Joint</h2><p class="muted small">' +
+            (d.attivo ? 'Attivi: i soci guadagnano Joint e il credito Ranch si ridistribuisce in base a versato + Joint.'
+                      : 'Spenti: nessun punto, credito = versato reale, tutto nascosto ai soci. I Joint già guadagnati restano congelati.') + '</p></div>' +
+          '<label class="interruttore"><input type="checkbox" id="joint-on"' + (d.attivo ? ' checked' : '') + '><span></span></label>' +
+        '</div>' +
+        '<form class="riquadro" id="reward" novalidate><h2>Ricompense</h2>' +
+          '<div class="tabella-reward">' + AZIONI_JOINT.map(function (a) {
+            return '<label><span>' + esc(a[1]) + '</span><input type="number" inputmode="decimal" min="0" max="1000" step="1" name="' + a[0] + '" value="' + esc(d.reward[a[0]]) + '"><em>' + esc(a[2]) + '</em></label>';
+          }).join('') + '</div>' +
+          '<p class="muted small">Se un\'azione viene annullata (cuore tolto, partecipazione annullata, pagamento annullato) i Joint si tolgono.</p>' +
+          '<p class="errore" id="err-rew" hidden></p>' +
+          '<button type="submit" class="btn primario">Salva ricompense</button></form>' +
+        '<h2>Soci</h2>' +
+        '<ul class="righe-admin">' + d.soci.map(function (s) {
+          var extra = Number(s.credito) - Number(s.reale);
+          return '<li>' + UI.avatar(s, 36) + '<span class="nome">' + esc(s.nome) +
+            '<small class="muted">versato ' + UI.euro(s.versato) + (d.attivo && Math.abs(extra) >= 0.01 ? ' · credito Ranch ' + UI.euro(s.credito) + ' (' + (extra > 0 ? '+' : '−') + UI.euro(Math.abs(extra)) + ')' : '') + '</small></span>' +
+            UI.joint(s.joint) + (d.attivo ? '<button type="button" class="btn piccolo" data-pj="' + esc(s.id) + '">± Joint</button>' : '') + '</li>';
+        }).join('') + '</ul>' +
+        '<h2>Ultimi Joint</h2>' +
+        (d.storico.length ? '<ul class="storico">' + d.storico.map(function (m) {
+          return '<li><span class="data muted">' + UI.data(m.data) + '</span><span class="cosa"><b>' + esc(m.socio) + '</b> · ' + esc(m.descrizione) + '</span>' +
+            '<b class="' + (m.punti > 0 ? 'pos' : 'neg') + '">' + (m.punti > 0 ? '+' : '') + m.punti + '</b></li>';
+        }).join('') + '</ul>' : '<p class="muted">Ancora nessun Joint.</p>');
+
+      function salva(attivo, btn) {
+        var f = el.querySelector('#reward'), r = {};
+        AZIONI_JOINT.forEach(function (a) { r[a[0]] = Number(f[a[0]].value); });
+        return RanchAPI.adminJointConfig(ctx.k, attivo, r).then(function () {
+          if (ctx.ricaricaMe) ctx.ricaricaMe();
+          joint(el, ctx);
+        });
+      }
+      el.querySelector('#joint-on').addEventListener('change', function (e) {
+        var on = e.target.checked;
+        conferma(on ? 'Accendere i Joint?' : 'Spegnere i Joint?',
+          on ? 'Da adesso le azioni dei soci fanno guadagnare Joint e il credito Ranch si ridistribuisce in base a versato + Joint.'
+             : 'I soci non vedranno più i Joint e il credito torna uguale al versato reale. I Joint guadagnati restano congelati.',
+          on ? 'Accendi' : 'Spegni', function () {
+            salva(on).catch(function (e2) { e.target.checked = !on; UI.toast(e2.message); });
+          });
+        e.target.checked = !on; // finché non confermi
+      });
+      el.querySelector('#reward').addEventListener('submit', function (e) {
+        e.preventDefault();
+        var err = el.querySelector('#err-rew');
+        salva(d.attivo).then(function () { UI.toast('Ricompense salvate'); }).catch(function (e2) { err.textContent = e2.message; err.hidden = false; });
+      });
+      el.querySelectorAll('[data-pj]').forEach(function (b) {
+        b.addEventListener('click', function () {
+          var s = d.soci.filter(function (x) { return x.id === b.getAttribute('data-pj'); })[0];
+          var w = document.createElement('div');
+          w.className = 'modal-bg';
+          w.innerHTML = '<form class="modal" role="dialog" aria-modal="true" aria-label="Joint a ' + esc(s.nome) + '" novalidate>' +
+            '<h2>' + UI.avatar(s, 32) + ' ' + esc(s.nome) + '</h2><p class="muted small">Ora ha ' + UI.joint(s.joint) + '</p>' +
+            '<div class="segmenti"><button type="button" class="btn attivo" data-segno="1">+ Bonus</button><button type="button" class="btn" data-segno="-1">− Penalità</button></div>' +
+            '<div class="due"><label class="campo"><span>Joint</span><input name="punti" type="number" inputmode="numeric" min="1" step="1" value="50"></label>' +
+            '<label class="campo"><span>Causale</span><input name="causale" maxlength="120" placeholder="Giornata lavori in pista"></label></div>' +
+            '<p class="errore" hidden></p><div class="azioni"><button type="button" class="btn" data-a="no">Annulla</button><button type="submit" class="btn primario">Conferma</button></div></form>';
+          document.body.appendChild(w);
+          var f = w.querySelector('form'), segno = 1, er = w.querySelector('.errore');
+          w.addEventListener('click', function (ev) {
+            if (ev.target === w || ev.target.getAttribute('data-a') === 'no') w.remove();
+            var sg = ev.target.getAttribute && ev.target.getAttribute('data-segno');
+            if (sg) { segno = Number(sg); w.querySelectorAll('[data-segno]').forEach(function (x) { x.classList.toggle('attivo', x === ev.target); }); }
+          });
+          f.addEventListener('submit', function (ev) {
+            ev.preventDefault();
+            var n = Math.round(Number(f.punti.value));
+            if (!(n > 0)) { er.textContent = 'Indica quanti Joint.'; er.hidden = false; return; }
+            if (!f.causale.value.trim()) { er.textContent = 'Scrivi una causale.'; er.hidden = false; return; }
+            RanchAPI.adminJointDai(ctx.k, s.id, segno * n, f.causale.value.trim()).then(function () {
+              w.remove(); UI.toast((segno > 0 ? '+' : '−') + n + ' Joint a ' + s.nome); joint(el, ctx);
+            }).catch(function (e2) { er.textContent = e2.message; er.hidden = false; });
+          });
+        });
+      });
+    }).catch(function (e) { el.innerHTML = UI.errore(e); });
+  }
+
   // ---------------- Messaggi Telegram ----------------
   var TIPI_MSG = { comunicazione: ['📣', 'Comunicazione'], promozione: ['🏷️', 'Promozione'], urgente: ['🚨', 'Urgente'] };
   function messaggi(el, ctx) {

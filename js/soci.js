@@ -10,16 +10,40 @@ window.Soci = (function () {
         '<div class="metriche una">' +
           '<div class="metrica"><span>Fondocassa</span><strong>' + UI.euro(d.totali.credito) + '</strong></div>' +
         '</div>' +
+        (d.jointAttivo ? '<section class="classifica" id="classifica"></section>' : '') +
         '<div class="griglia-soci">' +
           d.soci.map(function (s) {
             return '<a class="card-socio' + (s.id === mioId ? ' io' : '') + '" href="#/soci/' + esc(s.id) + '">' +
               '<span class="testa">' + UI.avatar(s, 52) + UI.numero(s, 44) + '</span>' +
               '<span class="nome">' + esc(s.nome) + (s.id === mioId ? ' <em>(tu)</em>' : '') + '</span>' +
               '<span class="riga"><span>Credito</span><b>' + UI.euro(s.credito) + '</b></span>' +
+              (d.jointAttivo ? '<span class="riga"><span>Joint</span>' + UI.joint(s.joint) + '</span>' : '') +
             '</a>';
           }).join('') +
         '</div>';
+      if (d.jointAttivo) classifica(view.querySelector('#classifica'), mioId);
     }).catch(function (e) { view.innerHTML = UI.errore(e); });
+  }
+
+  // classifica Joint: podio dei primi tre e il resto in fila
+  function classifica(el, mioId) {
+    RanchAPI.getJoint().then(function (j) {
+      if (!j.attivo || !j.classifica.length) { el.remove(); return; }
+      var l = j.classifica, max = Math.max(1, l[0].joint);
+      var podio = [l[1], l[0], l[2]].filter(Boolean);
+      el.innerHTML = '<div class="classifica-testa"><h2>' + UI.foglia(22) + ' Classifica Joint</h2><span class="muted small">più Joint = più credito Ranch da gestire</span></div>' +
+        '<div class="podio">' + podio.map(function (s) {
+          var pos = l.indexOf(s) + 1;
+          return '<a class="gradino g' + pos + (s.id === mioId ? ' io' : '') + '" href="#/soci/' + esc(s.id) + '">' +
+            '<span class="medaglia">' + ['🥇', '🥈', '🥉'][pos - 1] + '</span>' + UI.avatar(s, pos === 1 ? 56 : 44) +
+            '<span class="nome">' + esc(s.nome.split(' ')[0]) + '</span>' + UI.joint(s.joint) +
+            '<span class="base"></span></a>';
+        }).join('') + '</div>' +
+        (l.length > 3 ? '<ol class="resto" start="4">' + l.slice(3).map(function (s) {
+          return '<li' + (s.id === mioId ? ' class="io"' : '') + '><span class="pos"></span>' + UI.avatar(s, 26) + '<span class="nome">' + esc(s.nome) + '</span>' +
+            '<span class="barretta"><span style="width:' + Math.round(s.joint / max * 100) + '%"></span></span>' + UI.joint(s.joint) + '</li>';
+        }).join('') + '</ol>' : '');
+    }).catch(function () { el.remove(); });
   }
 
   var tendinaAperta = {}; // resta aperta dopo un pagamento

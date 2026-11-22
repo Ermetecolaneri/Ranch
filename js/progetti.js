@@ -87,6 +87,14 @@ window.Progetti = (function () {
   function boxCredito(me) {
     if (!me) return '';
     var c = Number(me.credito) || 0;
+    if (me.jointAttivo) {
+      var extra = c - (Number(me.creditoReale) || 0);
+      return '<div class="box-credito joint-on' + (c > 0 ? '' : ' vuoto') + '" role="status">' +
+        '<div class="testo"><span>Il tuo credito Ranch</span><strong>' + UI.euro(c) + '</strong></div>' +
+        '<div class="nota">' + UI.joint(me.joint) + '<span>reale ' + UI.euro(me.creditoReale) +
+          (Math.abs(extra) >= 0.01 ? ' · <b class="' + (extra > 0 ? 'pos' : 'neg') + '">' + (extra > 0 ? '+' : '−') + UI.euro(Math.abs(extra)) + '</b> grazie ai Joint' : '') + '</span></div>' +
+      '</div>';
+    }
     return '<div class="box-credito' + (c > 0 ? '' : ' vuoto') + '" role="status">' +
       '<div class="testo"><span>Il tuo credito da usare</span><strong>' + UI.euro(c) + '</strong></div>' +
       '<div class="nota">' + (c > 0 ? 'Usalo per comprare quote dei progetti' : 'Nessun credito disponibile al momento') + '</div>' +
