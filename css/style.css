@@ -9,8 +9,11 @@
   --ink: #1f2419;
   --muted: #6b6f63;
   --line: #e3ded2;
-  --accent: #3f6b2f;
-  --accent-bg: #e6efdf;
+  /* arancione KTM acceso: fill e bordi; testo arancione più scuro per leggibilità; testo nero sui pulsanti arancioni */
+  --accent: #ff6600;
+  --accent-ink: #c24a00;
+  --on-accent: #111111;
+  --accent-bg: #fff0e5;
   --pos: #2f7a32;
   --err: #b3261e;
   --radius: 12px;
@@ -27,7 +30,7 @@
 @media (prefers-color-scheme: dark) {
   :root {
     --bg: #14160f; --card: #1d2017; --ink: #ecebe4; --muted: #a3a698; --line: #2e3227;
-    --accent: #9cc77f; --accent-bg: #26331d; --pos: #8fd08f; --err: #f28b82;
+    --accent: #ff7a1a; --accent-ink: #ff9a52; --on-accent: #111111; --accent-bg: #3a1c08; --pos: #8fd08f; --err: #f28b82;
     --t-violet: #2b2856; --i-violet: #c9c5fa;
     --t-aqua: #0f3a31;   --i-aqua: #9fe1cb;
     --t-orange: #4a2213; --i-orange: #f5c4b3;
@@ -70,7 +73,7 @@ h2 { font-size: 16px; margin: 24px 0 8px; font-weight: 600; }
   flex: none; padding: 6px 12px; border-radius: 999px; text-decoration: none;
   font-size: 14px; color: var(--muted);
 }
-.tabs a.attiva { background: var(--accent-bg); color: var(--accent); font-weight: 600; }
+.tabs a.attiva { background: var(--accent-bg); color: var(--accent-ink); font-weight: 600; }
 
 .view { max-width: 960px; margin: 0 auto; padding: 16px; }
 
@@ -168,8 +171,8 @@ h2 { font-size: 16px; margin: 24px 0 8px; font-weight: 600; }
   border: 1px solid var(--line); background: var(--card); color: var(--ink); font: inherit; font-size: 15px;
 }
 .btn:hover { border-color: var(--muted); }
-.btn.primario { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
-@media (prefers-color-scheme: dark) { .btn.primario { color: #14160f; } }
+.btn.primario { background: var(--accent); border-color: var(--accent); color: var(--on-accent); font-weight: 700; }
+
 .btn:disabled { opacity: .6; cursor: wait; }
 
 .modal-bg {
@@ -208,7 +211,7 @@ h2 { font-size: 16px; margin: 24px 0 8px; font-weight: 600; }
 
 .demo-banner {
   position: fixed; left: 0; right: 0; bottom: 0; z-index: 4;
-  background: var(--accent-bg); color: var(--accent); font-size: 13px; text-align: center;
+  background: var(--accent-bg); color: var(--accent-ink); font-size: 13px; text-align: center;
   padding: 8px 12px calc(8px + env(safe-area-inset-bottom));
 }
 body:has(.demo-banner:not([hidden])) .view { padding-bottom: 56px; }
@@ -234,7 +237,7 @@ body:has(.demo-banner:not([hidden])) .view { padding-bottom: 56px; }
 .foto-box { position: relative; }
 .foto-progetto { display: block; width: 100%; aspect-ratio: 16 / 9; object-fit: cover; background: var(--line); }
 .foto-vuota { display: flex; align-items: center; justify-content: center; background: var(--accent-bg); }
-.foto-vuota span { font-size: 64px; font-weight: 700; color: var(--accent); opacity: .5; }
+.foto-vuota span { font-size: 64px; font-weight: 700; color: var(--accent); opacity: .55; }
 .foto-box .badge { position: absolute; top: 10px; left: 10px; }
 .foto-box.modulo { border-radius: 10px; overflow: hidden; margin-bottom: 8px; }
 .card-progetto .corpo, .dettaglio-progetto .corpo { padding: 14px 16px 16px; }
@@ -252,7 +255,7 @@ body:has(.demo-banner:not([hidden])) .view { padding-bottom: 56px; }
 .barra.completa span { background: #2b9348; }
 
 .badge { display: inline-block; font-size: 12px; font-weight: 600; padding: 3px 10px; border-radius: 99px; }
-.st-raccolta { background: #e6efdf; color: #2f5a22; }
+.st-raccolta { background: var(--accent); color: var(--on-accent); }
 .st-sviluppo { background: #faeed7; color: #7a4a0a; }
 .st-chiuso { background: #2b9348; color: #fff; }
 .st-scaduto { background: #e3ded2; color: #555; }
@@ -288,8 +291,8 @@ body:has(.demo-banner:not([hidden])) .view { padding-bottom: 56px; }
 #dopo { margin: 6px 0 0; }
 .btn.largo { width: 100%; margin-top: 12px; }
 .segmenti { display: flex; gap: 6px; flex-wrap: wrap; margin: 10px 0 12px; }
-.segmenti .btn.attivo { background: var(--accent); color: #fff; border-color: var(--accent); font-weight: 600; }
-@media (prefers-color-scheme: dark) { .segmenti .btn.attivo { color: #14160f; } }
+.segmenti .btn.attivo { background: var(--accent); color: var(--on-accent); border-color: var(--accent); font-weight: 700; }
+
 .btn.pericolo { color: var(--err); border-color: var(--err); background: transparent; }
 .btn.pericolo-pieno { background: var(--err); border-color: var(--err); color: #fff; font-weight: 600; }
 #modifica-p { margin-bottom: 16px; }
@@ -319,7 +322,7 @@ body:has(.demo-banner:not([hidden])) .view { padding-bottom: 56px; }
 .chip { border: 1px solid var(--line); background: var(--bg); color: var(--ink); border-radius: 99px; padding: 4px 10px; font: inherit; font-size: 13px; cursor: pointer; }
 .sel-soci { margin-top: 12px; border-top: 1px solid var(--line); padding-top: 8px; }
 .sel-azioni { font-size: 13px; margin-bottom: 4px; }
-.link { background: none; border: none; padding: 0; color: var(--accent); font: inherit; cursor: pointer; text-decoration: underline; }
+.link { background: none; border: none; padding: 0; color: var(--accent-ink); font: inherit; cursor: pointer; text-decoration: underline; }
 .sel-socio { display: flex; align-items: center; gap: 10px; padding: 6px 0; cursor: pointer; }
 .sel-socio input { width: 18px; height: 18px; accent-color: var(--accent); }
 .sel-socio > span:not(.avatar) { flex: 1; }
@@ -367,14 +370,14 @@ body:has(.demo-banner:not([hidden])) .view { padding-bottom: 56px; }
 /* ---------------- Grafico ---------------- */
 :root { --serie-obiettivo: #5b7fd6; --serie-raccolto: #2b9348; }
 @media (prefers-color-scheme: dark) { :root { --serie-obiettivo: #6f8fe6; --serie-raccolto: #3fa86c; } }
-.kpi-btn { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; min-width: 0; cursor: pointer; font: inherit; color: var(--accent); }
+.kpi-btn { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; min-width: 0; cursor: pointer; font: inherit; color: var(--accent-ink); }
 @media (max-width: 480px) {
   .kpi { min-width: 0; padding: 10px 12px; }
   .kpi strong { font-size: 18px; }
   .kpi small { font-size: 13px; }
   .kpi-btn { padding: 8px 10px; }
 }
-.kpi-btn span { color: var(--accent); font-weight: 600; font-size: 14px; }
+.kpi-btn span { color: var(--accent-ink); font-weight: 600; font-size: 14px; }
 .kpi-btn:hover { border-color: var(--accent); }
 .modal.grafico { max-width: 720px; }
 .testa-grafico { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
@@ -401,7 +404,7 @@ body:has(.demo-banner:not([hidden])) .view { padding-bottom: 56px; }
   padding: 6px 10px; font-size: 12px; box-shadow: 0 4px 12px rgba(0,0,0,.12); max-width: 260px;
 }
 .tabella-grafico { margin-top: 8px; font-size: 14px; }
-.tabella-grafico summary { cursor: pointer; color: var(--accent); }
+.tabella-grafico summary { cursor: pointer; color: var(--accent-ink); }
 .tabella-grafico table { width: 100%; border-collapse: collapse; margin-top: 8px; }
 .tabella-grafico th, .tabella-grafico td { text-align: left; padding: 6px 4px; border-top: 1px solid var(--line); }
 .tabella-grafico th:nth-child(n+3), .tabella-grafico td:nth-child(n+3) { text-align: right; white-space: nowrap; }
@@ -410,7 +413,7 @@ body:has(.demo-banner:not([hidden])) .view { padding-bottom: 56px; }
 .foto-vuota.evento span { color: var(--accent); opacity: .45; display: flex; }
 .card-evento.passato { opacity: .7; }
 .quando { display: flex; align-items: center; gap: 6px; margin: 6px 0 0; font-size: 14px; color: var(--ink); }
-.quando svg { color: var(--accent); flex: none; }
+.quando svg { color: var(--accent-ink); flex: none; }
 .quando.grande { font-size: 17px; font-weight: 600; margin: 0 0 12px; }
 .quando.proposte { color: var(--muted); }
 .mini-date { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
@@ -424,11 +427,11 @@ body:has(.demo-banner:not([hidden])) .view { padding-bottom: 56px; }
 .date-candidate li { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--card); }
 .date-candidate li.top { border: 2px solid var(--accent); }
 .date-candidate .cal { flex: none; width: 52px; text-align: center; border-radius: 10px; background: var(--accent-bg); padding: 4px 0; line-height: 1.15; }
-.date-candidate .cal span { display: block; font-size: 11px; text-transform: uppercase; color: var(--accent); }
+.date-candidate .cal span { display: block; font-size: 11px; text-transform: uppercase; color: var(--accent-ink); }
 .date-candidate .cal b { display: block; font-size: 22px; color: var(--ink); }
 .date-candidate .info { flex: 1; min-width: 0; }
 .date-candidate .info p { margin: 0; }
-.piu-votata { color: var(--accent); font-weight: 600; }
+.piu-votata { color: var(--accent-ink); font-weight: 600; }
 .votanti { display: flex; align-items: center; margin: 4px 0; min-height: 24px; }
 .votanti > span { margin-right: -6px; border-radius: 50%; box-shadow: 0 0 0 2px var(--card); display: inline-flex; }
 .votanti em { font-style: normal; font-size: 12px; color: var(--muted); margin-left: 10px; }
@@ -456,10 +459,10 @@ body:has(.demo-banner:not([hidden])) .view { padding-bottom: 56px; }
 /* ---------------- Credito del socio ---------------- */
 .box-credito {
   display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
-  background: #2b9348; color: #fff; border-radius: 14px; padding: 14px 18px; margin: 0 0 16px;
+  background: var(--accent); color: var(--on-accent); border-radius: 14px; padding: 14px 18px; margin: 0 0 16px;
 }
-.box-credito .testo span { display: block; font-size: 13px; opacity: .9; }
+.box-credito .testo span { display: block; font-size: 13px; font-weight: 600; }
 .box-credito .testo strong { display: block; font-size: 32px; line-height: 1.1; font-weight: 700; letter-spacing: -.01em; }
-.box-credito .nota { font-size: 13px; opacity: .9; max-width: 200px; text-align: right; }
+.box-credito .nota { font-size: 13px; font-weight: 500; max-width: 200px; text-align: right; }
 .box-credito.vuoto { background: var(--t-yellow); color: var(--i-yellow); }
 @media (max-width: 420px) { .box-credito .nota { text-align: left; max-width: none; } }
