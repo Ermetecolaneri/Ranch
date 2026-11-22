@@ -22,6 +22,8 @@ window.Soci = (function () {
     }).catch(function (e) { view.innerHTML = UI.errore(e); });
   }
 
+  var tendinaAperta = {}; // resta aperta dopo un pagamento
+  function plurale(n, uno, tanti) { return n + ' ' + (n === 1 ? uno : tanti); }
   function scheda(view, id, ctx) {
     view.innerHTML = UI.caricamento();
     Promise.all([RanchAPI.getSocio(id), RanchAPI.getRateSocio(id).catch(function () { return []; })]).then(function (res) {
@@ -47,7 +49,11 @@ window.Soci = (function () {
             '<div class="metrica"><span>Totale investito</span><strong>' + UI.euro(s.investito) + '</strong></div>' +
           '</div>' +
           (rate.length ?
-            '<h2>Rate</h2>' +
+            '<details class="tendina-rate" id="tendina-rate"' + (tendinaAperta[s.id] ? ' open' : '') + '>' +
+            '<summary><span class="tr-titolo"><b>Rate</b><span class="sotto-voce">' +
+              (pendenti.length ? plurale(pendenti.length, 'rata', 'rate') + ' da pagare · ' + UI.euro(pendenti.reduce(function (t, r) { return t + Number(r.importo); }, 0)) : 'Tutte pagate ✓') +
+            '</span></span><span class="tr-cta"><span class="tr-chiusa">Scopri le rate</span><span class="tr-aperta">Chiudi</span> <span class="tr-freccia" aria-hidden="true">›</span></span></summary>' +
+            '<div class="tr-corpo">' +
             (pendenti.length ?
               '<ul class="elenco rate-socio">' + pendenti.map(function (r) {
                 var vis = r.visibile !== false;
@@ -63,7 +69,8 @@ window.Soci = (function () {
               '<details class="rate-pagate"><summary>' + pagate.length + (pagate.length === 1 ? ' rata pagata' : ' rate pagate') + '</summary><ul class="elenco">' +
               pagate.map(function (r) {
                 return '<li><span>' + esc(r.titolo) + '<span class="sotto-voce pos">✓ pagata il ' + esc(UI.data(r.pagataIl)) + '</span></span><b>' + UI.euro(r.importo) + '</b></li>';
-              }).join('') + '</ul></details>' : '')
+              }).join('') + '</ul></details>' : '') +
+            '</div></details>'
             : '') +
           '<h2>Progetti finanziati</h2>' +
           (d.progetti.length ?
@@ -82,6 +89,8 @@ window.Soci = (function () {
             : '<p class="muted">Nessun movimento.</p>') +
         '</section>';
 
+      var tendina = view.querySelector('#tendina-rate');
+      if (tendina) tendina.addEventListener('toggle', function () { tendinaAperta[s.id] = tendina.open; });
       Cassa.collegaPagamenti(view, rate.map(function (r) {
         return { id: r.id, titolo: r.titolo, importo: r.importo, soci: [{ id: s.id, nome: s.nome, pagataIl: r.pagataIl }] };
       }), ctx, function () { scheda(view, id, ctx); });
