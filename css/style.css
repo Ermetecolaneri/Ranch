@@ -684,3 +684,10 @@ h2.primo { margin-top: 0; }
 .cp.riga2::after { height: 30px; }
 .cp.fatto i { border-bottom-color: var(--in); }
 .cp.fatto span { color: var(--in); }
+
+.titolo-sigla { display: grid; grid-template-columns: minmax(0, 1fr) 96px; gap: 10px; }
+.titolo-sigla .sigla input { text-transform: uppercase; letter-spacing: .08em; font-weight: 700; }
+.nota-sigla { margin: -4px 0 10px; }
+.mia-partecipazione { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin: 14px 0; padding: 10px 14px; border-radius: 12px; background: var(--bg); border: 1px solid var(--line); }
+.mia-partecipazione span { display: block; }
+.mia-partecipazione b { font-size: 16px; }

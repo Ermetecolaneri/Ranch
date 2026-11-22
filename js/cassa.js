@@ -119,7 +119,7 @@ window.Cassa = (function () {
       var fatto = num(x.raccolto) >= num(x.totale) - 0.005;
       return '<span class="cp riga' + riga + (fatto ? ' fatto' : '') + '" style="left:' + pos.toFixed(2) + '%" title="' +
         esc(x.titolo + ' · scade ' + UI.data(x.scadenza) + ' · ' + UI.euro(x.totale) + ' (progressivo ' + UI.euro(cum) + ')') + '">' +
-        '<i></i><span>' + esc(sigla(x.titolo)) + '</span></span>';
+        '<i></i><span>' + esc(x.sigla || sigla(x.titolo)) + '</span></span>';
     }).join('');
     var righe = Math.max.apply(null, ultimi.map(function (v, i) { return v > -99 ? i : 0; }));
     return '<div class="checkpoint r' + righe + '">' + html + '</div>';
@@ -391,7 +391,7 @@ window.Cassa = (function () {
     f.addEventListener('submit', function (e) {
       e.preventDefault();
       if (!f.s.value) { err.textContent = 'Scegli una scadenza.'; err.hidden = false; return; }
-      RanchAPI.modificaProgetto(ctx.k, x.id, { titolo: x.titolo, descrizione: x.descrizione || '', quoteTotali: Number(f.q.value),
+      RanchAPI.modificaProgetto(ctx.k, x.id, { titolo: x.titolo, descrizione: x.descrizione || '', sigla: x.sigla || null, quoteTotali: Number(f.q.value),
         costoQuota: bloccato ? num(x.costoQuota) : Number(f.c.value), scadenza: f.s.value })
         .then(function () { wrap.remove(); UI.toast('Progetto aggiornato'); fatto(); })
         .catch(function (e2) { err.textContent = e2.message; err.hidden = false; });

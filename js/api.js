@@ -175,7 +175,7 @@
       if (!s) return rifiuto('Link personale non valido.');
       var e = validaProgetto(d) || (d.scadenza < oggi() ? 'La scadenza non può essere nel passato.' : '');
       if (e) return rifiuto(e);
-      var p = { id: 'p' + Date.now(), titolo: d.titolo.trim(), descrizione: (d.descrizione || '').trim(),
+      var p = { id: 'p' + Date.now(), titolo: d.titolo.trim(), sigla: String(d.sigla || '').toUpperCase().slice(0, 4), descrizione: (d.descrizione || '').trim(),
                 quoteTotali: Number(d.quoteTotali), costoQuota: Number(d.costoQuota), scadenza: d.scadenza,
                 stato: 'raccolta', creatoDa: s.id, foto: '', creatoIl: new Date().toISOString() };
       D.progetti.push(p);
@@ -193,6 +193,7 @@
       var vend = quoteVendute(id), haMov = D.movimenti.some(function (m) { return m.progetto === id; });
       if (haMov && Number(d.costoQuota) !== p.costoQuota) return rifiuto('Il costo quota non si può cambiare dopo il primo acquisto.');
       if (haMov && Number(d.quoteTotali) < vend) return rifiuto('Sono già state vendute ' + vend + ' quote: le quote totali non possono essere meno.');
+      if (d.sigla != null) p.sigla = String(d.sigla).toUpperCase().slice(0, 4);
       Object.assign(p, { titolo: d.titolo.trim(), descrizione: (d.descrizione || '').trim(), quoteTotali: Number(d.quoteTotali),
                          costoQuota: Number(d.costoQuota), scadenza: d.scadenza });
       return attesa(progettoPubblico(p));
@@ -212,6 +213,18 @@
       D.movimenti.push({ id: 'm' + Date.now(), data: new Date().toISOString(), socio: s.id, tipo: 'acquisto', importo: -costo,
                          progetto: id, quote: quote, causale: quote + (quote === 1 ? ' quota' : ' quote'), messaggio: (messaggio || '').trim() });
       return attesa({ progetto: progettoPubblico(p), credito: credito - costo });
+    },
+    annullaPartecipazione: function (k, id) {
+      var s = perCodice(k), p = trovaProgetto(id);
+      if (!s) return rifiuto('Link personale non valido.');
+      if (!p) return rifiuto('Progetto non trovato.');
+      if (p.stato !== 'raccolta') return rifiuto('Il progetto è già in esecuzione: la partecipazione non si può più annullare.');
+      var q = 0, imp = 0;
+      D.movimenti.forEach(function (m) { if (m.progetto === id && m.socio === s.id) { q += m.quote; imp -= m.importo; } });
+      if (q <= 0 || imp <= 0) return rifiuto('Non hai quote in questo progetto.');
+      D.movimenti.push({ id: 'm' + Date.now(), data: new Date().toISOString(), socio: s.id, tipo: 'rimborso', importo: imp, progetto: id,
+                         quote: -q, causale: 'Partecipazione annullata', fattoDa: 'socio' });
+      return attesa({ ok: true, quote: q, importo: imp, progetto: progettoPubblico(p) });
     },
     impostaStato: function (k, id, stato) {
       var s = perCodice(k), p = trovaProgetto(id);
@@ -283,7 +296,7 @@
       var prog = D.progetti.filter(function (x) { return x.stato !== 'eliminato'; }).map(function (x) {
         var pp = progettoPubblico(x), sost = {};
         D.movimenti.forEach(function (m) { if (m.progetto === x.id) sost[m.socio] = (sost[m.socio] || 0) + m.quote; });
-        return { id: x.id, titolo: x.titolo, descrizione: x.descrizione, stato: x.stato, scadenza: x.scadenza, eseguitoIl: x.eseguitoIl || null, chiusoIl: x.chiusoIl || null,
+        return { id: x.id, titolo: x.titolo, descrizione: x.descrizione, stato: x.stato, scadenza: x.scadenza, sigla: x.sigla || '', eseguitoIl: x.eseguitoIl || null, chiusoIl: x.chiusoIl || null,
                  quoteTotali: x.quoteTotali, costoQuota: x.costoQuota, totale: pp.totale, raccolto: pp.raccolto, quoteVendute: pp.quoteVendute,
                  sostenitori: Object.keys(sost).filter(function (k) { return sost[k] > 0; }).length };
       }).sort(function (a, b) { return a.scadenza < b.scadenza ? -1 : 1; });
@@ -547,7 +560,7 @@
     var raccolto = mov.reduce(function (t, m) { return t - m.importo; }, 0);
     var perSocio = {};
     mov.forEach(function (m) { perSocio[m.socio] = (perSocio[m.socio] || 0) + m.quote; });
-    return { id: p.id, titolo: p.titolo, descrizione: p.descrizione, foto: p.foto || '', quoteTotali: p.quoteTotali,
+    return { id: p.id, titolo: p.titolo, sigla: p.sigla || '', descrizione: p.descrizione, foto: p.foto || '', quoteTotali: p.quoteTotali,
              costoQuota: p.costoQuota, totale: p.quoteTotali * p.costoQuota, raccolto: raccolto,
              quoteVendute: quoteVendute(p.id),
              sostenitori: Object.keys(perSocio).filter(function (k) { return perSocio[k] > 0; }).length,
@@ -653,6 +666,9 @@
       var a = argsProgetto(k, d); a.p_id = id;
       return rpc('modifica_progetto', a).then(conFotoProgetto);
     },
+    annullaPartecipazione: function (k, id) {
+      return rpc('annulla_partecipazione', { p_k: k, p_id: id }).then(function (d) { conFotoProgetto(d.progetto); return d; });
+    },
     acquistaQuote: function (k, id, quote, messaggio) {
       return rpc('acquista_quote', { p_k: k, p_id: id, p_quote: Number(quote), p_messaggio: messaggio || '' })
         .then(function (d) { conFotoProgetto(d.progetto); return d; });
@@ -690,7 +706,7 @@
   };
   function argsProgetto(k, d) {
     return { p_k: k, p_titolo: d.titolo, p_descrizione: d.descrizione || '', p_quote_totali: Number(d.quoteTotali),
-             p_costo_quota: Number(d.costoQuota), p_scadenza: d.scadenza };
+             p_costo_quota: Number(d.costoQuota), p_scadenza: d.scadenza, p_sigla: d.sigla == null ? null : String(d.sigla) };
   }
   function conFotoEvento(e) {
     if (!e) return e;

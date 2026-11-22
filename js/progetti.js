@@ -121,13 +121,33 @@ window.Progetti = (function () {
   }
 
   // ---------- dettaglio ----------
+  function siglaAuto(titolo) {
+    var t = String(titolo || '').trim(), parole = t.split(/\s+/);
+    return t ? (parole.slice(0, 3).map(function (w) { return w.charAt(0); }).join('') + t.charAt(t.length - 1)).toUpperCase().slice(0, 4) : '';
+  }
+  function conferma(titolo, testoHtml, etichetta, siFn) {
+    var w = document.createElement('div');
+    w.className = 'modal-bg';
+    w.innerHTML = '<div class="modal" role="alertdialog" aria-modal="true" aria-label="' + esc(titolo) + '"><h2>' + esc(titolo) + '</h2><p>' + testoHtml + '</p>' +
+      '<div class="azioni"><button type="button" class="btn" data-a="no">Indietro</button><button type="button" class="btn pericolo-pieno" data-a="si">' + esc(etichetta) + '</button></div></div>';
+    document.body.appendChild(w);
+    w.addEventListener('click', function (ev) {
+      var a = ev.target.getAttribute && ev.target.getAttribute('data-a');
+      if (ev.target === w || a === 'no') w.remove();
+      if (a === 'si') { w.remove(); siFn(); }
+    });
+  }
   function scheda(view, id, ctx, festeggia) {
     view.innerHTML = UI.caricamento();
     RanchAPI.getProgetto(id).then(function (d) {
       var p = d.progetto, me = ctx.me;
       var mio = me && p.creatoDa && me.id === p.creatoDa.id;
       var resto = p.quoteTotali - p.quoteVendute;
-      var acquisti = d.finanziatori.filter(function (f) { return f.tipo === 'acquisto'; });
+      var nette = {};
+      d.finanziatori.forEach(function (f) { nette[f.socio.id] = (nette[f.socio.id] || 0) + Number(f.quote); });
+      var acquisti = d.finanziatori.filter(function (f) { return f.tipo === 'acquisto' && nette[f.socio.id] > 0; });
+      var mieQuote = me ? (nette[me.id] || 0) : 0;
+      var mioImporto = me ? d.finanziatori.filter(function (f) { return f.socio.id === me.id; }).reduce(function (t, f) { return t + Number(f.importo); }, 0) : 0;
 
       view.innerHTML =
         '<a class="indietro" href="#/progetti">← Tutti i progetti</a>' +
@@ -148,6 +168,10 @@ window.Progetti = (function () {
               '<div><span>Sostenitori</span><b>' + p.sostenitori + '</b></div>' +
               '<div><span>Scadenza</span><b>' + UI.data(p.scadenza) + '</b></div>' +
             '</div>' +
+            (mieQuote > 0 ?
+              '<div class="mia-partecipazione"><div><span class="muted small">La tua partecipazione</span><b>' + plurale(mieQuote, 'quota', 'quote') + ' · ' + UI.euro(mioImporto) + '</b></div>' +
+                (p.stato === 'raccolta' ? '<button type="button" class="btn pericolo piccolo" id="annulla-part">Annulla partecipazione</button>'
+                  : '<span class="muted small">Non più annullabile: il progetto è in esecuzione</span>') + '</div>' : '') +
             boxAcquisto(p, me, resto) +
             ((mio || (me && me.admin)) ? '<button type="button" class="btn" id="modifica-p">Modifica progetto</button>' : '') +
             (me && me.admin ? boxAdmin(p) : '') +
@@ -165,6 +189,18 @@ window.Progetti = (function () {
         '</article>';
 
       collegaAcquisto(view, p, ctx, resto);
+      var ba = view.querySelector('#annulla-part');
+      if (ba) ba.addEventListener('click', function () {
+        conferma('Annullare la partecipazione?', 'Ritiri le tue ' + plurale(mieQuote, 'quota', 'quote') + ' da “' + esc(p.titolo) + '” e ti tornano <b>' + UI.euro(mioImporto) + '</b> di credito.',
+          'Annulla partecipazione', function () {
+            ba.disabled = true;
+            RanchAPI.annullaPartecipazione(ctx.k, p.id).then(function (r) {
+              UI.toast('Partecipazione annullata: +' + UI.euro(r.importo) + ' di credito');
+              if (ctx.ricaricaMe) ctx.ricaricaMe();
+              scheda(view, id, ctx, false);
+            }).catch(function (e) { ba.disabled = false; UI.toast(e.message); });
+          });
+      });
       var bm = view.querySelector('#modifica-p');
       if (bm) bm.addEventListener('click', function () { form(ctx, p); });
       if (me && me.admin) collegaAdmin(view, p, ctx);
@@ -338,7 +374,11 @@ window.Progetti = (function () {
         '<h2>' + (nuovo ? 'Proponi un progetto' : 'Modifica progetto') + '</h2>' +
         '<div class="foto-box modulo" id="anteprima-foto">' + foto(p || { titolo: '+' }, 'foto-progetto') + '</div>' +
         '<label class="btn">' + (p && p.foto ? 'Cambia foto' : 'Scegli foto') + '<input type="file" accept="image/*" hidden></label>' +
-        '<label class="campo"><span>Titolo</span><input name="titolo" maxlength="80" placeholder="Tribuna in legno" value="' + esc(p ? p.titolo : '') + '"></label>' +
+        '<div class="titolo-sigla">' +
+          '<label class="campo"><span>Titolo</span><input name="titolo" maxlength="80" placeholder="Tribuna in legno" value="' + esc(p ? p.titolo : '') + '"></label>' +
+          '<label class="campo sigla"><span>Sigla <em class="muted">max 4</em></span><input name="sigla" maxlength="4" autocapitalize="characters" placeholder="' + esc(p ? siglaAuto(p.titolo) : 'TRIO') + '" value="' + esc(p ? (p.sigla || '') : '') + '"></label>' +
+        '</div>' +
+        '<p class="muted small nota-sigla">La sigla compare sui triangolini del bilancio in Cassa. Se la lasci vuota la calcolo dal titolo.</p>' +
         '<label class="campo"><span>Descrizione <em class="muted" id="cont-d"></em></span>' +
           '<textarea name="descrizione" rows="4" maxlength="1000" placeholder="Cosa vuoi realizzare e perché serve al ranch.">' + esc(p ? p.descrizione : '') + '</textarea></label>' +
         '<div class="due">' +
@@ -381,6 +421,7 @@ window.Progetti = (function () {
       e.preventDefault();
       var dati = {
         titolo: f.titolo.value.trim(), descrizione: f.descrizione.value.trim(),
+        sigla: (f.sigla.value.trim() || siglaAuto(f.titolo.value)).toUpperCase().slice(0, 4),
         quoteTotali: f.quoteTotali.value, costoQuota: bloccato ? p.costoQuota : f.costoQuota.value, scadenza: f.scadenza.value
       };
       var msg = !dati.titolo ? 'Scrivi un titolo.'
