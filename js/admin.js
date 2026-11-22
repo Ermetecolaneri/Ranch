@@ -364,7 +364,7 @@ window.Admin = (function () {
         '<ul class="righe-admin">' + d.soci.map(function (s) {
           var extra = Number(s.credito) - Number(s.reale);
           return '<li>' + UI.avatar(s, 36) + '<span class="nome">' + esc(s.nome) +
-            '<small class="muted">versato ' + UI.euro(s.versato) + (d.attivo && Math.abs(extra) >= 0.01 ? ' · credito Ranch ' + UI.euro(s.credito) + ' (' + (extra > 0 ? '+' : '−') + UI.euro(Math.abs(extra)) + ')' : '') + '</small></span>' +
+            '<small class="muted">versato ' + UI.euro(s.versato) + (d.attivo ? ' ' + UI.fattore(s.fattore) + ' = ' + UI.euro(s.gestibile) + ' · credito ' + UI.euro(s.credito) : '') + '</small></span>' +
             UI.joint(s.joint) + (d.attivo ? '<button type="button" class="btn piccolo" data-pj="' + esc(s.id) + '">± Joint</button>' : '') + '</li>';
         }).join('') + '</ul>' +
         '<h2>Ultimi Joint</h2>' +

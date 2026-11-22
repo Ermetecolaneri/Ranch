@@ -87,12 +87,21 @@ window.Progetti = (function () {
   function boxCredito(me) {
     if (!me) return '';
     var c = Number(me.credito) || 0;
-    if (me.jointAttivo) {
-      var extra = c - (Number(me.creditoReale) || 0);
+    if (me.jointAttivo && me.calcolo) {
+      var k = me.calcolo;
       return '<div class="box-credito joint-on' + (c > 0 ? '' : ' vuoto') + '" role="status">' +
         '<div class="testo"><span>Il tuo credito Ranch</span><strong>' + UI.euro(c) + '</strong></div>' +
-        '<div class="nota">' + UI.joint(me.joint) + '<span>reale ' + UI.euro(me.creditoReale) +
-          (Math.abs(extra) >= 0.01 ? ' · <b class="' + (extra > 0 ? 'pos' : 'neg') + '">' + (extra > 0 ? '+' : '−') + UI.euro(Math.abs(extra)) + '</b> ' + (extra > 0 ? 'grazie ai Joint' : 'per i Joint degli altri') : '') + '</span></div>' +
+        '<div class="calcolo-joint">' +
+          '<span class="pezzo"><small>versato</small><b>' + UI.euro(me.versato) + '</b></span><i>×</i>' +
+          '<span class="pezzo fatt"><small>fattore</small><b>' + UI.fattore(k.fattore) + '</b></span><i>=</i>' +
+          '<span class="pezzo"><small>gestibile</small><b>' + UI.euro(k.gestibile) + '</b></span>' +
+          (Number(k.speso) > 0.005 ? '<i>−</i><span class="pezzo"><small>già usati</small><b>' + UI.euro(k.speso) + '</b></span>' : '') +
+        '</div>' +
+        '<details class="spiega-fattore"><summary>' + UI.joint(me.joint) + ' Come si calcola il fattore</summary>' +
+          '<p>Fattore = (1 + tuoi Joint ÷ Joint totali) × riequilibrio</p>' +
+          '<p><b>(1 + ' + (me.joint || 0) + ' ÷ ' + (k.jointTotali || 0) + ') × ' + UI.fattore(k.riequilibrio).slice(1) + ' = ' + UI.fattore(k.fattore) + '</b></p>' +
+          '<p class="muted small">Il riequilibrio fa sì che la somma dei crediti di tutti resti uguale ai soldi in cassa. Credito reale: ' + UI.euro(me.creditoReale) + '.</p>' +
+        '</details>' +
       '</div>';
     }
     return '<div class="box-credito' + (c > 0 ? '' : ' vuoto') + '" role="status">' +

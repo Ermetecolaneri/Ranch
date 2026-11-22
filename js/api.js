@@ -70,16 +70,22 @@
   if (D && !D.joint) D.joint = { attivo: false, reward: { cuore: 10, quote_per_euro: 1, rata_in_tempo: 20, voto_evento: 5, progetto_proposto: 15, profilo_completo: 10 },
     mov: [{ id: 1, socioId: 's02', punti: 100, azione: 'admin', descrizione: 'Bonus attività', fattoDa: 'admin', data: '2026-11-20T10:00:00' },
           { id: 2, socioId: 's04', punti: 40, azione: 'cuore', descrizione: 'Cuori sui progetti', fattoDa: 'auto', data: '2026-11-21T10:00:00' }] };
-  // credito Ranch: versato totale × (versato + Joint) / Σ(versato + Joint) − speso
+  // credito Ranch = versato × fattore; fattore = (1 + tuoi Joint / Joint totali) × riequilibrio; − già speso
   function creditiRanch() {
-    var r = {}, vtot = 0, ptot = 0;
+    var r = {}, vtot = 0, jtot = 0, den = 0;
     D.soci.forEach(function (x) { r[x.id] = { versato: 0, speso: 0, reale: 0, joint: 0 }; });
     D.movimenti.forEach(function (m) { var x = r[m.socio]; if (!x) return; x.reale += m.importo;
       if (m.tipo === 'accredito' || m.tipo === 'addebito') x.versato += m.importo; if (m.progetto) x.speso -= m.importo; });
     D.joint.mov.forEach(function (m) { if (r[m.socioId]) r[m.socioId].joint += m.punti; });
-    Object.keys(r).forEach(function (id) { var x = r[id]; x.joint = Math.max(0, x.joint); x.peso = x.versato > 0 ? x.versato + x.joint : 0; vtot += x.versato; ptot += x.peso; });
+    Object.keys(r).forEach(function (id) { var x = r[id]; x.joint = Math.max(0, x.joint); vtot += x.versato; if (x.versato > 0) jtot += x.joint; });
+    Object.keys(r).forEach(function (id) { var x = r[id]; x.quota = jtot > 0 && x.versato > 0 ? x.joint / jtot : 0;
+      x.fattoreBase = x.versato > 0 ? 1 + x.quota : 0; if (x.versato > 0) den += x.versato * x.fattoreBase; });
+    var k = den > 0 ? vtot / den : 1;
     Object.keys(r).forEach(function (id) { var x = r[id];
-      x.ranch = !D.joint.attivo || ptot <= 0 ? x.reale : Math.round((vtot * x.peso / ptot - x.speso) * 100) / 100; });
+      x.riequilibrio = k; x.fattore = x.fattoreBase * k;
+      x.gestibile = D.joint.attivo ? Math.round(x.versato * x.fattore * 100) / 100 : x.versato;
+      x.ranch = D.joint.attivo ? Math.round((x.gestibile - x.speso) * 100) / 100 : x.reale; });
+    r._jtot = jtot; r._k = k;
     return r;
   }
   function clone(x) { return JSON.parse(JSON.stringify(x)); }
@@ -143,7 +149,9 @@
       if (!socio) return attesa(null);
       var pb = pubblico(socio, saldi(D.movimenti));
       return attesa({ id: socio.id, nome: socio.nome, foto: socio.foto || '', admin: !!socio.admin,
-                      credito: pb.credito, creditoReale: pb.creditoReale, versato: pb.versato, jointAttivo: D.joint.attivo, joint: pb.joint });
+                      credito: pb.credito, creditoReale: pb.creditoReale, versato: pb.versato, jointAttivo: D.joint.attivo, joint: pb.joint,
+                      calcolo: D.joint.attivo ? (function () { var c = creditiRanch(), x = c[socio.id];
+                        return { jointTotali: c._jtot, quota: x.quota, fattoreBase: x.fattoreBase, riequilibrio: x.riequilibrio, fattore: x.fattore, gestibile: x.gestibile, speso: x.speso }; })() : null });
     },
     aggiornaProfilo: function (k, dati) {
       var socio = perCodice(k);
@@ -234,16 +242,16 @@
     getJoint: function () {
       if (!D.joint.attivo) return attesa({ attivo: false });
       var c = creditiRanch();
-      return attesa({ attivo: true, reward: D.joint.reward, classifica: D.soci.filter(function (x) { return x.attivo; }).map(function (x) {
+      return attesa({ attivo: true, reward: D.joint.reward, jointTotali: c._jtot, riequilibrio: c._k, classifica: D.soci.filter(function (x) { return x.attivo; }).map(function (x) {
         var r = c[x.id]; return { id: x.id, nome: x.nome, foto: x.foto || '', numeroGara: x.numeroGara, numeroFont: x.numeroFont, numeroColore: x.numeroColore,
-          joint: r.joint, credito: r.ranch, versato: r.versato }; }).sort(function (a, b) { return b.joint - a.joint || a.nome.localeCompare(b.nome, 'it'); }) });
+          joint: r.joint, credito: r.ranch, versato: r.versato, quota: r.quota, fattoreBase: r.fattoreBase, fattore: r.fattore, gestibile: r.gestibile, speso: r.speso }; }).sort(function (a, b) { return b.joint - a.joint || a.nome.localeCompare(b.nome, 'it'); }) });
     },
     adminJoint: function (k) {
       var a = perCodice(k); if (!a || !a.admin) return rifiuto('Funzione riservata all\'admin.');
       var c = creditiRanch();
       return attesa({ attivo: D.joint.attivo, reward: D.joint.reward,
         soci: D.soci.filter(function (x) { return x.attivo; }).map(function (x) { var r = c[x.id];
-          return { id: x.id, nome: x.nome, foto: x.foto || '', joint: r.joint, versato: r.versato, credito: r.ranch, reale: r.reale }; })
+          return { id: x.id, nome: x.nome, foto: x.foto || '', joint: r.joint, versato: r.versato, credito: r.ranch, reale: r.reale, fattore: r.fattore, gestibile: r.gestibile }; })
           .sort(function (a, b) { return b.joint - a.joint; }),
         storico: D.joint.mov.slice().reverse().map(function (m) { return Object.assign({}, m, { socio: (D.soci.filter(function (x) { return x.id === m.socioId; })[0] || {}).nome }); }) });
     },

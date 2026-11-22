@@ -37,12 +37,30 @@ window.Soci = (function () {
           return '<a class="gradino g' + pos + (s.id === mioId ? ' io' : '') + '" href="#/soci/' + esc(s.id) + '">' +
             '<span class="medaglia">' + ['🥇', '🥈', '🥉'][pos - 1] + '</span>' + UI.avatar(s, pos === 1 ? 56 : 44) +
             '<span class="nome">' + esc(s.nome.split(' ')[0]) + '</span>' + UI.joint(s.joint) +
+            '<span class="fatt-mini">' + UI.fattore(s.fattore) + '</span>' +
             '<span class="base"></span></a>';
         }).join('') + '</div>' +
         (l.length > 3 ? '<ol class="resto" start="4">' + l.slice(3).map(function (s) {
           return '<li' + (s.id === mioId ? ' class="io"' : '') + '><span class="pos"></span>' + UI.avatar(s, 26) + '<span class="nome">' + esc(s.nome) + '</span>' +
-            '<span class="barretta"><span style="width:' + Math.round(s.joint / max * 100) + '%"></span></span>' + UI.joint(s.joint) + '</li>';
-        }).join('') + '</ol>' : '');
+            '<span class="barretta"><span style="width:' + Math.round(s.joint / max * 100) + '%"></span></span>' + UI.joint(s.joint) +
+            '<span class="fatt-mini">' + UI.fattore(s.fattore) + '</span></li>';
+        }).join('') + '</ol>' : '') +
+        '<details class="recap-joint"><summary>Recap: credito Ranch di ognuno</summary>' +
+          '<p class="muted small">Fattore = (1 + Joint del socio ÷ ' + (j.jointTotali || 0) + ' Joint totali) × ' + UI.fattore(j.riequilibrio).slice(1) +
+            ' di riequilibrio, così la somma resta uguale alla cassa. Credito Ranch = versato × fattore − già usato.</p>' +
+          '<div class="tabella-wrap"><table class="tabella">' +
+            '<thead><tr><th>Socio</th><th class="n">Versato</th><th class="n">Fattore</th><th class="n">Gestibile</th><th class="n">Credito</th></tr></thead><tbody>' +
+            l.map(function (s) {
+              return '<tr' + (s.id === mioId ? ' class="ora"' : '') + '><td>' + esc(s.nome.split(' ')[0]) +
+                '<span class="sotto-voce">' + s.joint + ' Joint · ' + UI.pct(s.quota) + '</span></td>' +
+                '<td class="n">' + UI.euro(s.versato) + '</td>' +
+                '<td class="n"><b>' + UI.fattore(s.fattore) + '</b><span class="sotto-voce">(1+' + Number(s.quota).toLocaleString('it-IT', { maximumFractionDigits: 2 }) + ')×' +
+                  Number(j.riequilibrio).toLocaleString('it-IT', { maximumFractionDigits: 2 }) + '</span></td>' +
+                '<td class="n">' + UI.euro(s.gestibile) + '</td>' +
+                '<td class="n"><b>' + UI.euro(s.credito) + '</b>' + (Number(s.speso) > 0.005 ? '<span class="sotto-voce">−' + UI.euro(s.speso) + ' usati</span>' : '') + '</td></tr>';
+            }).join('') +
+          '</tbody></table></div>' +
+        '</details>';
     }).catch(function () { el.remove(); });
   }
 
