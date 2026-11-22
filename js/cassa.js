@@ -48,7 +48,45 @@ window.Cassa = (function () {
     var disponibile = entrate - uscite;
     return { mesi: righe, entrate: entrate, uscite: uscite, disponibile: disponibile, bloccato: bloccato,
              libero: num(c.creditoLibero), future: future, scadute: scadute, fatti: fatti, inCorso: inCorso,
+             attivi: inCorso.reduce(function (t, x) { return t + num(x.totale); }, 0),
              quadra: Math.abs(disponibile - (num(c.creditoLibero) + bloccato)) < 0.005 };
+  }
+
+  // disponibile + rate future − progetti attivi = quello che resta (deve tornare)
+  function bilancio(t) {
+    var margine = t.disponibile + t.future - t.attivi, ok = margine >= -0.005;
+    var libero = Math.max(0, t.disponibile - t.bloccato), daRacc = Math.max(0, t.attivi - t.bloccato);
+    var scala = Math.max(t.disponibile + t.future, t.attivi, 1);
+    function seg(v, cls, titolo) {
+      return v > 0.005 ? '<span class="seg ' + cls + '" style="width:' + (v / scala * 100).toFixed(2) + '%" title="' + esc(titolo + ': ' + UI.euro(v)) + '"></span>' : '';
+    }
+    var pctBl = t.attivi > 0 ? Math.round(t.bloccato / t.attivi * 100) : 0;
+    return '<section class="bilancio" aria-label="Bilancio della cassa">' +
+      '<div class="eq">' +
+        '<div class="eq-box disp"><span>Disponibile</span><strong>' + UI.euro(t.disponibile) + '</strong><small>in cassa ora</small></div>' +
+        '<div class="eq-box fut"><i class="op">+</i><span>Rate future</span><strong>' + UI.euro(t.future) + '</strong>' +
+          (t.scadute > 0 ? '<small class="neg">' + UI.euro(t.scadute) + ' scadute</small>' : '<small>ancora da incassare</small>') + '</div>' +
+        '<div class="eq-box prog"><i class="op">−</i><span>Progetti attivi</span><strong>' + UI.euro(t.attivi) + '</strong>' +
+          '<small>bloccati <b>' + UI.euro(t.bloccato) + '</b> / ' + UI.euro(t.attivi) + '</small>' +
+          '<span class="mini-barra"><span style="width:' + pctBl + '%"></span></span></div>' +
+        '<div class="eq-box ris ' + (ok ? 'ok' : 'ko') + '"><i class="op">=</i><span>' + (ok ? 'Resta in cassa' : 'Mancano') + '</span>' +
+          '<strong>' + (ok ? (margine > 0.005 ? '+' : '') + UI.euro(margine) : UI.euro(-margine)) + '</strong>' +
+          '<small>' + (ok ? (margine > 0.005 ? 'fondocassa a progetti fatti' : 'tutto torna a zero') : 'le rate non bastano per i progetti') + '</small></div>' +
+      '</div>' +
+      (scala > 1 ?
+        '<div class="barre">' +
+          '<div class="riga"><span class="lab">Soldi</span><div class="bar">' +
+            seg(t.bloccato, 'bl', 'Bloccato nei progetti') + seg(libero, 'lib', 'Disponibile libero') + seg(t.future, 'fut', 'Rate future') + '</div></div>' +
+          '<div class="riga"><span class="lab">Progetti</span><div class="bar">' +
+            seg(t.bloccato, 'bl', 'Bloccato nei progetti') + seg(daRacc, 'racc', 'Da raccogliere') +
+            (ok && margine > 0.005 ? seg(margine, 'marg', 'Resta in cassa') : '') + '</div></div>' +
+          '<div class="legenda">' +
+            '<span><i class="sw bl"></i>Bloccato</span><span><i class="sw lib"></i>Disponibile libero</span>' +
+            '<span><i class="sw fut"></i>Rate future</span><span><i class="sw racc"></i>Da raccogliere</span>' +
+            (ok && margine > 0.005 ? '<span><i class="sw marg"></i>Resta</span>' : '') +
+          '</div>' +
+        '</div>' : '') +
+    '</section>';
   }
 
   function mostra(view, ctx) {
@@ -58,12 +96,7 @@ window.Cassa = (function () {
       // si apre solo la prima rata che devo ancora pagare
       var primaMia = c.rate.filter(function (r) { return r.visibile !== false && r.soci.some(function (x) { return x.id === io && !x.pagataIl; }); })[0];
       view.innerHTML =
-        '<div class="kpi-griglia tre">' +
-          '<div class="kpi evidenza"><span>Disponibile</span><strong>' + UI.euro(t.disponibile) + '</strong></div>' +
-          '<div class="kpi"><span>Rate future</span><strong>' + UI.euro(t.future) + '</strong>' +
-            (t.scadute > 0 ? '<small class="neg">' + UI.euro(t.scadute) + ' scadute</small>' : '') + '</div>' +
-          '<div class="kpi"><span>Bloccato nei progetti</span><strong>' + UI.euro(t.bloccato) + '</strong></div>' +
-        '</div>' +
+        bilancio(t) +
         '<h2>Flusso di cassa</h2>' +
         (t.mesi.length ?
           '<div class="tabella-wrap"><table class="tabella">' +
