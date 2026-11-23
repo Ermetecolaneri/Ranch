@@ -15,7 +15,7 @@ window.Soci = (function () {
           d.soci.map(function (s) {
             return '<a class="card-socio' + (s.id === mioId ? ' io' : '') + '" href="#/soci/' + esc(s.id) + '">' +
               '<span class="testa">' + UI.avatar(s, 52) + UI.numero(s, 44) + '</span>' +
-              '<span class="nome">' + esc(s.nome) + (s.id === mioId ? ' <em>(tu)</em>' : '') + '</span>' +
+              '<span class="nome">' + (UI.nomeLogo(s) || esc(s.nome)) + (s.id === mioId ? ' <em>(tu)</em>' : '') + '</span>' +
               '<span class="riga"><span>Credito</span><b>' + UI.euro(s.credito) + '</b></span>' +
               (d.jointAttivo ? '<span class="riga"><span>Joint</span>' + UI.joint(s.joint) + '</span>' : '') +
             '</a>';
@@ -80,7 +80,7 @@ window.Soci = (function () {
           '<div class="testata">' +
             '<div class="foto-wrap">' + UI.avatar(s, 88) + UI.numero(s, 64) + '</div>' +
             '<div class="dati">' +
-              '<h1>' + esc(s.nome) + '</h1>' +
+              (UI.nomeLogo(s) ? '<h1 class="h1-logo">' + UI.nomeLogo(s) + '</h1><p class="nome-sotto">' + esc(s.nome) + '</p>' : '<h1>' + esc(s.nome) + '</h1>') +
               (s.dataIngresso ? '<p class="muted">Socio da ' + esc(UI.meseAnno(s.dataIngresso)) + '</p>' : '') +
               (s.bio ? '<p class="bio">' + esc(s.bio) + '</p>' : '') +
             '</div>' +

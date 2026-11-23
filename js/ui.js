@@ -42,9 +42,32 @@ window.UI = (function () {
     viola: '#7b2cbf', rosa: '#ff4d9d', nero: '#111111', bianco: '#ffffff'
   };
 
+  // Loghi personali (immagini in img/loghi): il numero vale solo finché il socio tiene quel numero
+  var LOGHI = {
+    'cb7ae0a2-cad8-4709-bac5-6bbb6011e76d': { // Daniele La Rovere
+      numero: 10, numeroImg: 'img/loghi/daniele-10.png', numeroRapporto: 480 / 210,
+      nomeImg: 'img/loghi/daniele-bubi10.png'
+    }
+  };
+  function logo(socio) { return socio && socio.id ? LOGHI[socio.id] : null; }
+
+  // Nome del socio: il logo se ne ha uno, altrimenti il testo
+  function nomeLogo(socio, alt) {
+    var l = logo(socio);
+    if (!l || !l.nomeImg) return '';
+    return '<img class="nome-logo" src="' + esc(l.nomeImg) + '" alt="' + esc(alt || socio.nome) + '"' +
+      (alt === '' ? ' aria-hidden="true"' : '') + '>';
+  }
+
   // Numero di gara grande, con il font e il colore scelti dal socio
   function numero(socio, px) {
     if (!socio.numeroGara) return '';
+    var l = logo(socio);
+    if (l && l.numeroImg && Number(socio.numeroGara) === l.numero) {
+      var h = Math.round((px || 40) * 0.8);
+      return '<img class="numero-logo" src="' + esc(l.numeroImg) + '" alt="Numero ' + esc(socio.numeroGara) + '" ' +
+        'style="height:' + h + 'px;width:' + Math.round(h * l.numeroRapporto) + 'px">';
+    }
     var f = FONT_NUMERO[socio.numeroFont] ? socio.numeroFont : 'corsa';
     var c = COLORI_NUMERO[socio.numeroColore] ? socio.numeroColore : 'rosso';
     return '<span class="numero-gara nf-' + f + ' nc-' + c + '" style="font-size:' + (px || 40) + 'px" ' +
@@ -118,6 +141,6 @@ window.UI = (function () {
     return '<p class="errore pad">' + esc(msg) + '</p>';
   }
 
-  return { fattore: fattore, pct: pct, foglia: foglia, joint: joint, premio: premio, premioPunti: premioPunti, esc: esc, avatar: avatar, numero: numero, FONT_NUMERO: FONT_NUMERO, COLORI_NUMERO: COLORI_NUMERO,euro: euro, euroSegno: euroSegno, data: data, meseAnno: meseAnno,
+  return { fattore: fattore, pct: pct, foglia: foglia, joint: joint, premio: premio, premioPunti: premioPunti, esc: esc, avatar: avatar, numero: numero, nomeLogo: nomeLogo, FONT_NUMERO: FONT_NUMERO, COLORI_NUMERO: COLORI_NUMERO,euro: euro, euroSegno: euroSegno, data: data, meseAnno: meseAnno,
            intervallo: intervallo, giornoBreve: giornoBreve, toast: toast, caricamento: caricamento, errore: errore };
 })();
