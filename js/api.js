@@ -88,6 +88,17 @@
     r._jtot = jtot; r._k = k;
     return r;
   }
+  if (D && !D.commenti) D.commenti = [
+    { id: 1, progetto: 'p01', socio: 's04', testo: 'Finalmente! Serve come il pane.', data: '2026-11-20T18:00:00', reazioni: { su: ['s01', 's02'], dito: [], duce: ['s07'] } },
+    { id: 2, progetto: 'p01', socio: 's07', testo: 'Io metto altre 2 quote a fine mese 💪', data: '2026-11-21T09:30:00', reazioni: { su: ['s04'], dito: ['s05'], duce: [] } },
+    { id: 3, progetto: 'p02', socio: 's03', testo: 'Chi viene a montarlo sabato?', data: '2026-11-22T11:00:00', reazioni: { su: [], dito: [], duce: [] } }];
+  function socioDi(id) { return D.soci.filter(function (x) { return x.id === id; })[0] || { nome: '?' }; }
+  function commentoPubblico(c, io) {
+    var a = socioDi(c.socio), mie = [];
+    ['su', 'dito', 'duce'].forEach(function (t) { if (io && c.reazioni[t].indexOf(io.id) >= 0) mie.push(t); });
+    return { id: c.id, testo: c.testo, data: c.data, autore: { id: a.id, nome: a.nome, foto: a.foto || '' },
+             reazioni: { su: c.reazioni.su.length, dito: c.reazioni.dito.length, duce: c.reazioni.duce.length }, mie: mie };
+  }
   function clone(x) { return JSON.parse(JSON.stringify(x)); }
   function attesa(v) { return new Promise(function (ok) { setTimeout(function () { ok(clone(v)); }, 150); }); }
   function rifiuto(msg) { return new Promise(function (_, ko) { setTimeout(function () { ko(errore(msg)); }, 150); }); }
@@ -177,7 +188,11 @@
     getProgetti: function (k) {
       var io = perCodice(k);
       var lista = D.progetti.filter(function (p) { return p.stato !== 'eliminato'; }).map(function (p) {
-        var x = progettoPubblico(p); x.mioCuore = !!(io && (D.cuori[p.id] || []).indexOf(io.id) >= 0); return x;
+        var x = progettoPubblico(p); x.mioCuore = !!(io && (D.cuori[p.id] || []).indexOf(io.id) >= 0);
+        var cc = D.commenti.filter(function (c) { return c.progetto === p.id; });
+        x.commenti = cc.length;
+        x.anteprimaCommenti = cc.slice().reverse().slice(0, 5).map(function (c) { var a = socioDi(c.socio); return { testo: c.testo, nome: a.nome, foto: a.foto || '' }; });
+        return x;
       });
       var ordine = { raccolta: 0, sviluppo: 1, chiuso: 2 };
       lista.sort(function (a, b) { return (ordine[a.stato] - ordine[b.stato]) || (a.scadenza < b.scadenza ? -1 : 1); });
@@ -267,6 +282,31 @@
       if (!Number(punti)) return rifiuto('Punti non validi.');
       if (!String(causale || '').trim()) return rifiuto('Scrivi una causale.');
       D.joint.mov.push({ id: Date.now(), socioId: socio, punti: Number(punti), azione: 'admin', descrizione: causale, fattoDa: 'admin', data: new Date().toISOString() });
+      return attesa({ ok: true });
+    },
+    getCommenti: function (id, k) {
+      var io = perCodice(k);
+      return attesa(D.commenti.filter(function (c) { return c.progetto === id; }).slice().reverse().map(function (c) { return commentoPubblico(c, io); }));
+    },
+    commenta: function (k, id, testo) {
+      var s = perCodice(k); if (!s) return rifiuto('Link personale non valido.');
+      if (!String(testo || '').trim()) return rifiuto('Scrivi il commento.');
+      var c = { id: Date.now(), progetto: id, socio: s.id, testo: String(testo).trim(), data: new Date().toISOString(), reazioni: { su: [], dito: [], duce: [] } };
+      D.commenti.push(c);
+      return attesa(commentoPubblico(c, s));
+    },
+    reagisci: function (k, id, tipo) {
+      var s = perCodice(k); if (!s) return rifiuto('Link personale non valido.');
+      var c = D.commenti.filter(function (x) { return x.id === id; })[0]; if (!c) return rifiuto('Commento non trovato.');
+      var l = c.reazioni[tipo], i = l.indexOf(s.id);
+      if (i >= 0) l.splice(i, 1); else l.push(s.id);
+      return attesa(commentoPubblico(c, s));
+    },
+    eliminaCommento: function (k, id) {
+      var s = perCodice(k); if (!s) return rifiuto('Link personale non valido.');
+      var c = D.commenti.filter(function (x) { return x.id === id; })[0]; if (!c) return rifiuto('Commento non trovato.');
+      if (c.socio !== s.id && !s.admin) return rifiuto('Puoi eliminare solo i tuoi commenti.');
+      D.commenti.splice(D.commenti.indexOf(c), 1);
       return attesa({ ok: true });
     },
     adminMessaggi: function (k) {
@@ -687,7 +727,10 @@
 
     // ----- progetti -----
     getProgetti: function (k) {
-      return rpc('get_progetti', { p_k: k || null }).then(function (d) { d.progetti.forEach(conFotoProgetto); return d; });
+      return rpc('get_progetti', { p_k: k || null }).then(function (d) {
+        d.progetti.forEach(function (p) { conFotoProgetto(p); (p.anteprimaCommenti || []).forEach(conFoto); });
+        return d;
+      });
     },
     cuore: function (k, id) { return rpc('cuore', { p_k: k, p_id: id }); },
     getAndamento: function () { return rpc('get_andamento'); },
@@ -737,6 +780,12 @@
       var a = argsProgetto(k, d); a.p_id = id;
       return rpc('modifica_progetto', a).then(conFotoProgetto);
     },
+    getCommenti: function (id, k) {
+      return rpc('get_commenti', { p_id: id, p_k: k || null }).then(function (l) { l.forEach(function (c) { conFoto(c.autore); }); return l; });
+    },
+    commenta: function (k, id, testo) { return rpc('commenta', { p_k: k, p_id: id, p_testo: testo }).then(function (c) { conFoto(c.autore); return c; }); },
+    reagisci: function (k, id, tipo) { return rpc('reagisci', { p_k: k, p_commento: id, p_tipo: tipo }).then(function (c) { conFoto(c.autore); return c; }); },
+    eliminaCommento: function (k, id) { return rpc('elimina_commento', { p_k: k, p_commento: id }); },
     telegramStato: function (k) { return rpc('telegram_stato', { p_k: k }); },
     getJoint: function () { return rpc('get_joint').then(function (d) { (d.classifica || []).forEach(conFoto); return d; }); },
     adminJoint: function (k) { return rpc('admin_joint', { p_k: k }).then(function (d) { d.soci.forEach(conFoto); return d; }); },

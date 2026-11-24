@@ -36,9 +36,10 @@ window.Progetti = (function () {
   function lista(view, ctx) {
     view.innerHTML = UI.caricamento();
     RanchAPI.getProgetti(ctx.k).then(function (d) {
-      // in ordine di completamento: prima i più vicini al 100%
+      // in ordine di interesse: cuori + commenti + quote pagate; a pari punteggio il più vicino al 100%
       function pct(p) { return p.totale > 0 ? Number(p.raccolto) / Number(p.totale) : 0; }
-      d.progetti.sort(function (a, b) { return (pct(b) - pct(a)) || String(a.scadenza).localeCompare(String(b.scadenza)) || a.titolo.localeCompare(b.titolo, 'it'); });
+      function punti(p) { return (Number(p.cuori) || 0) + (Number(p.commenti) || 0) + (Number(p.quoteVendute) || 0); }
+      d.progetti.sort(function (a, b) { return (punti(b) - punti(a)) || (pct(b) - pct(a)) || String(a.scadenza).localeCompare(String(b.scadenza)) || a.titolo.localeCompare(b.titolo, 'it'); });
       // il più amato (più cuori, almeno uno) si accende
       var maxCuori = d.progetti.reduce(function (m, p) { return Math.max(m, Number(p.cuori) || 0); }, 0);
       var amato = maxCuori > 0 ? d.progetti.filter(function (p) { return Number(p.cuori) === maxCuori; })[0] : null;
@@ -57,7 +58,7 @@ window.Progetti = (function () {
           '<div class="griglia-progetti">' + d.progetti.map(function (p) {
             var top = p === amato;
             return (top ? '<div class="fiamme-wrap">' : '') + '<a class="card-progetto' + (top ? ' amato' : '') + '" href="#/progetti/' + esc(p.id) + '">' +
-              '<div class="foto-box">' + foto(p, 'foto-progetto') + badge(p) + bottoneCuore(p) +
+              '<div class="foto-box">' + foto(p, 'foto-progetto') + badge(p) + bottoneCuore(p) + Commenti.caroselloHtml(p) +
                 (top ? '<span class="nastro-amato">🔥 Il più amato</span>' : '') + '</div>' +
               '<div class="corpo">' +
                 '<h2>' + esc(p.titolo) + '</h2>' +
@@ -65,6 +66,7 @@ window.Progetti = (function () {
                 barra(p) +
                 '<p class="soldi"><b>' + UI.euro(p.raccolto) + '</b> <span class="muted">/ ' + UI.euro(p.totale) + '</span></p>' +
                 '<p class="meta"><span>' + plurale(p.sostenitori, 'sostenitore', 'sostenitori') + '</span><span>' + esc(scadenza(p)) + '</span></p>' +
+                '<button type="button" class="btn-commenti" data-commenti="' + esc(p.id) + '">💬 <span>' + (p.commenti ? plurale(p.commenti, 'commento', 'commenti') : 'Commenta') + '</span></button>' +
               '</div>' +
             '</a>' + (top ? '</div>' : '');
           }).join('') + '</div>'
@@ -73,6 +75,14 @@ window.Progetti = (function () {
       var b = view.querySelector('#nuovo');
       if (b) b.addEventListener('click', function () { form(ctx, null); });
       view.querySelector('#apri-grafico').addEventListener('click', Grafico.apri);
+      Commenti.avviaCaroselli(view);
+      view.querySelectorAll('[data-commenti]').forEach(function (b) {
+        b.addEventListener('click', function (e) {
+          e.preventDefault(); e.stopPropagation();
+          var p = d.progetti.filter(function (x) { return x.id === b.getAttribute('data-commenti'); })[0];
+          Commenti.apri(p, ctx, function (n) { b.querySelector('span').textContent = n ? plurale(n, 'commento', 'commenti') : 'Commenta'; });
+        });
+      });
       view.querySelectorAll('[data-cuore]').forEach(function (c) {
         c.addEventListener('click', function (e) {
           e.preventDefault();
@@ -204,10 +214,12 @@ window.Progetti = (function () {
                   (f.messaggio ? '<p class="messaggio">“' + esc(f.messaggio) + '”</p>' : '') +
                 '</div></li>';
             }).join('') + '</ul>' : '<p class="muted">Nessun sostenitore ancora. Il primo può essere tu.</p>') +
+            '<h2 id="titolo-commenti">Commenti</h2><section class="sezione-commenti" id="commenti-p"></section>' +
           '</div>' +
         '</article>';
 
       collegaAcquisto(view, p, ctx, resto);
+      Commenti.monta(view.querySelector('#commenti-p'), p.id, ctx);
       var ba = view.querySelector('#annulla-part');
       if (ba) ba.addEventListener('click', function () {
         conferma('Annullare la partecipazione?', 'Ritiri le tue ' + plurale(mieQuote, 'quota', 'quote') + ' da “' + esc(p.titolo) + '” e ti tornano <b>' + UI.euro(mioImporto) + '</b> di credito.',
