@@ -92,6 +92,7 @@ window.Soci = (function () {
             '<div class="installa-box"><span class="tg-ico"><img src="img/icone/icona-192.png" alt="" width="36" height="36"></span>' +
             '<span class="tg-testo"><b>Installa l\'app</b><small>Icona sulla Home, a schermo intero</small></span>' +
             '<button type="button" class="btn primario piccolo" id="installa">Installa</button></div>' : '') +
+          (mia ? '<div class="telegram-box push-box" id="push-box"></div>' : '') +
           (mia ? '<div class="telegram-box" id="telegram-box"></div>' : '') +
           '<div class="metriche">' +
             '<div class="metrica"><span>Credito disponibile</span><strong>' + UI.euro(s.credito) + '</strong></div>' +
@@ -144,6 +145,7 @@ window.Soci = (function () {
       Cassa.collegaPagamenti(view, rate.map(function (r) {
         return { id: r.id, titolo: r.titolo, importo: r.importo, soci: [{ id: s.id, nome: s.nome, pagataIl: r.pagataIl }] };
       }), ctx, function () { scheda(view, id, ctx); });
+      if (mia) boxPush(view.querySelector('#push-box'), ctx);
       if (mia) boxTelegram(view.querySelector('#telegram-box'), ctx);
       var bi = view.querySelector('#installa');
       if (bi) bi.addEventListener('click', istruzioniInstalla);
@@ -153,6 +155,57 @@ window.Soci = (function () {
         });
       }
     }).catch(function (e) { view.innerHTML = UI.errore(e); });
+  }
+
+  // ---------- notifiche push sull'app ----------
+  function b64uInBytes(s) {
+    var p = '='.repeat((4 - s.length % 4) % 4), b = atob((s + p).replace(/-/g, '+').replace(/_/g, '/'));
+    return Uint8Array.from(b, function (c) { return c.charCodeAt(0); });
+  }
+  function boxPush(box, ctx) {
+    if (!box) return;
+    var I = window.RanchInstalla || {}, CAMPANA = '<span class="tg-ico">🔔</span>';
+    function mostra(testo, sotto, bottone) {
+      box.innerHTML = CAMPANA + '<span class="tg-testo"><b>' + testo + '</b><small>' + sotto + '</small></span>' + (bottone || '');
+    }
+    var supporto = 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+    if (!supporto) {
+      if (I.ios && !I.standalone) mostra('Notifiche sull\'app', 'Su iPhone prima installa l\'app sulla Home, aprila da lì e attivale', '<button type="button" class="btn piccolo" id="push-ios">Come</button>');
+      else mostra('Notifiche sull\'app', 'Questo browser non supporta le notifiche: usa Telegram qui sotto');
+      var bi = box.querySelector('#push-ios'); if (bi) bi.addEventListener('click', istruzioniInstalla);
+      return;
+    }
+    if (Notification.permission === 'denied') { mostra('Notifiche bloccate', 'Le hai bloccate: riattivale dalle impostazioni del telefono per questa app'); return; }
+    navigator.serviceWorker.ready.then(function (reg) { return reg.pushManager.getSubscription().then(function (sub) { return { reg: reg, sub: sub }; }); })
+      .then(function (x) {
+        if (x.sub) {
+          box.classList.add('on');
+          mostra('Notifiche attive', 'Su questo dispositivo ricevi gli avvisi del ranch', '<button type="button" class="btn piccolo" id="push-off">Disattiva</button>');
+          box.querySelector('#push-off').addEventListener('click', function () {
+            var ep = x.sub.endpoint;
+            x.sub.unsubscribe().then(function () { return RanchAPI.pushDisiscrivi(ctx.k, ep); })
+              .then(function () { UI.toast('Notifiche disattivate'); box.classList.remove('on'); boxPush(box, ctx); });
+          });
+        } else {
+          box.classList.remove('on');
+          mostra('Notifiche sull\'app', 'Rate, progetti ed eventi direttamente sul telefono', '<button type="button" class="btn primario piccolo" id="push-on">Attiva</button>');
+          box.querySelector('#push-on').addEventListener('click', function (ev) {
+            var bt = ev.currentTarget; bt.disabled = true; bt.textContent = 'Attivo…';
+            Notification.requestPermission().then(function (perm) {
+              if (perm !== 'granted') throw new Error('Permesso negato: senza il permesso non posso mandarti notifiche.');
+              return RanchAPI.pushChiave();
+            }).then(function (chiave) {
+              if (!chiave) throw new Error('Notifiche non ancora pronte sul server: riprova tra poco.');
+              return x.reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64uInBytes(chiave) });
+            }).then(function (sub) {
+              return RanchAPI.pushIscrivi(ctx.k, sub.toJSON());
+            }).then(function () {
+              UI.toast('Notifiche attivate 🔔 tra poco ti arriva la prima');
+              boxPush(box, ctx);
+            }).catch(function (e) { UI.toast(e.message); boxPush(box, ctx); });
+          });
+        }
+      }).catch(function () { mostra('Notifiche sull\'app', 'Ricarica la pagina e riprova'); });
   }
 
   function istruzioniInstalla() {

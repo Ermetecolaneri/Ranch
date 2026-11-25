@@ -322,6 +322,9 @@
       D.messaggi.push({ id: Date.now(), tipo: tipo, testo: testo, data: new Date().toISOString(), destinatari: soci.length, consegnati: soci.length, falliti: 0 });
       return attesa({ ok: true, destinatari: soci.length });
     },
+    pushChiave: function () { return attesa(''); },
+    pushIscrivi: function () { return attesa({ ok: true }); },
+    pushDisiscrivi: function () { return attesa({ ok: true }); },
     telegramStato: function (k) { var s = perCodice(k); return s ? attesa({ collegato: !!s.telegram, bot: 'RanchCH_bot' }) : rifiuto('Link personale non valido.'); },
     telegramCollega: function (k) { var s = perCodice(k); if (!s) return rifiuto('Link personale non valido.'); s.telegram = true; return attesa({ bot: 'RanchCH_bot', url: '#/soci/' + s.id }); },
     telegramScollega: function (k) { var s = perCodice(k); if (s) s.telegram = false; return attesa({ ok: true }); },
@@ -786,6 +789,9 @@
     commenta: function (k, id, testo) { return rpc('commenta', { p_k: k, p_id: id, p_testo: testo }).then(function (c) { conFoto(c.autore); return c; }); },
     reagisci: function (k, id, tipo) { return rpc('reagisci', { p_k: k, p_commento: id, p_tipo: tipo }).then(function (c) { conFoto(c.autore); return c; }); },
     eliminaCommento: function (k, id) { return rpc('elimina_commento', { p_k: k, p_commento: id }); },
+    pushChiave: function () { return rpc('push_chiave_pubblica'); },
+    pushIscrivi: function (k, sub) { return rpc('push_iscrivi', { p_k: k, p_endpoint: sub.endpoint, p_p256dh: sub.keys.p256dh, p_auth: sub.keys.auth }); },
+    pushDisiscrivi: function (k, endpoint) { return rpc('push_disiscrivi', { p_k: k, p_endpoint: endpoint }); },
     telegramStato: function (k) { return rpc('telegram_stato', { p_k: k }); },
     getJoint: function () { return rpc('get_joint').then(function (d) { (d.classifica || []).forEach(conFoto); return d; }); },
     adminJoint: function (k) { return rpc('admin_joint', { p_k: k }).then(function (d) { d.soci.forEach(conFoto); return d; }); },

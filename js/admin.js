@@ -437,9 +437,9 @@ window.Admin = (function () {
       var coll = d.soci.filter(function (s) { return s.collegato; }), tipo = 'comunicazione';
       el.innerHTML =
         '<form class="riquadro" id="msg" novalidate>' +
-          '<h2>Nuovo messaggio Telegram</h2>' +
-          '<p class="muted small">' + coll.length + ' di ' + d.soci.length + ' soci hanno collegato Telegram' +
-            (coll.length < d.soci.length ? ' · gli altri lo fanno dal loro profilo con "Collega"' : '') + '</p>' +
+          '<h2>Nuovo messaggio ai soci</h2>' +
+          '<p class="muted small">' + coll.length + ' di ' + d.soci.length + ' soci ricevono le notifiche (Telegram o app)' +
+            (coll.length < d.soci.length ? ' · gli altri le attivano dal loro profilo' : '') + '</p>' +
           '<div class="segmenti" role="group" aria-label="Tipo di messaggio">' + Object.keys(TIPI_MSG).map(function (t) {
             return '<button type="button" class="btn piccolo' + (t === tipo ? ' attivo' : '') + '" data-tipo="' + t + '">' + TIPI_MSG[t][0] + ' ' + TIPI_MSG[t][1] + '</button>';
           }).join('') + '</div>' +
@@ -450,7 +450,7 @@ window.Admin = (function () {
             d.soci.map(function (s) {
               return '<label class="sel-socio' + (s.collegato ? '' : ' off') + '"><input type="checkbox" name="dest" value="' + esc(s.id) + '"' +
                 (s.collegato ? ' checked' : ' disabled') + '>' + UI.avatar(s, 28) + '<span>' + esc(s.nome) + '</span>' +
-                '<em class="muted">' + (s.collegato ? '' : 'non collegato') + '</em></label>';
+                '<em class="muted">' + (s.collegato ? [s.telegram ? 'Telegram' : '', s.push ? 'App' : ''].filter(Boolean).join(' + ') : 'nessuna notifica') + '</em></label>';
             }).join('') +
           '</div>' +
           '<div class="anteprima-tg" id="anteprima-tg" hidden><span class="bolla"></span></div>' +

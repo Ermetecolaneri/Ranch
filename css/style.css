@@ -879,3 +879,4 @@ body.no-scroll { overflow: hidden; }
 .passi-installa li { margin: 8px 0; }
 .ico-share { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 5px; border: 1px solid var(--line); font-size: 12px; }
 @media (display-mode: standalone) { body { overscroll-behavior-y: none; } }
+.push-box .tg-ico { background: var(--bg); border: 1px solid var(--line); font-size: 18px; }
