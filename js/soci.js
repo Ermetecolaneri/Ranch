@@ -88,6 +88,10 @@ window.Soci = (function () {
           (mia ? '<button type="button" class="btn" id="modifica">Modifica profilo' +
             (!(s.foto && s.numeroGara && s.bio) ? ' ' + UI.premio('profilo_completo') : '') + '</button>' +
             (!(s.foto && s.numeroGara && s.bio) && UI.premioPunti('profilo_completo') > 0 ? '<p class="muted small">Completa foto, numero e bio per guadagnare i Joint.</p>' : '') : '') +
+          (mia && window.RanchInstalla && !window.RanchInstalla.standalone ?
+            '<div class="installa-box"><span class="tg-ico"><img src="img/icone/icona-192.png" alt="" width="36" height="36"></span>' +
+            '<span class="tg-testo"><b>Installa l\'app</b><small>Icona sulla Home, a schermo intero</small></span>' +
+            '<button type="button" class="btn primario piccolo" id="installa">Installa</button></div>' : '') +
           (mia ? '<div class="telegram-box" id="telegram-box"></div>' : '') +
           '<div class="metriche">' +
             '<div class="metrica"><span>Credito disponibile</span><strong>' + UI.euro(s.credito) + '</strong></div>' +
@@ -141,12 +145,39 @@ window.Soci = (function () {
         return { id: r.id, titolo: r.titolo, importo: r.importo, soci: [{ id: s.id, nome: s.nome, pagataIl: r.pagataIl }] };
       }), ctx, function () { scheda(view, id, ctx); });
       if (mia) boxTelegram(view.querySelector('#telegram-box'), ctx);
+      var bi = view.querySelector('#installa');
+      if (bi) bi.addEventListener('click', istruzioniInstalla);
       if (mia) {
         view.querySelector('#modifica').addEventListener('click', function () {
           modificaProfilo(s, ctx, function () { scheda(view, id, ctx); });
         });
       }
     }).catch(function (e) { view.innerHTML = UI.errore(e); });
+  }
+
+  function istruzioniInstalla() {
+    var I = window.RanchInstalla || {};
+    if (I.prompt) {   // Android / Chrome: finestra di installazione del browser
+      I.prompt.prompt();
+      I.prompt.userChoice.then(function (r) { if (r.outcome === 'accepted') UI.toast('App installata 🎉'); I.prompt = null; });
+      return;
+    }
+    var safari = I.ios && /Safari/.test(navigator.userAgent) && !/CriOS|FxiOS|EdgiOS/.test(navigator.userAgent);
+    var passi = I.ios
+      ? ['Tocca <b>Condividi</b> <span class="ico-share">⬆︎</span> in basso' + (safari ? '' : ' (o nel menu del browser)'),
+         'Scorri e scegli <b>Aggiungi alla schermata Home</b>',
+         'Conferma con <b>Aggiungi</b>: trovi l\'icona Ranch sulla Home']
+      : ['Apri il menu del browser <b>⋮</b> in alto a destra',
+         'Scegli <b>Installa app</b> (o <b>Aggiungi a schermata Home</b>)',
+         'Conferma: trovi l\'icona Ranch tra le app'];
+    var w = document.createElement('div');
+    w.className = 'modal-bg';
+    w.innerHTML = '<div class="modal" role="dialog" aria-modal="true" aria-label="Installa l\'app">' +
+      '<h2>📲 Installa l\'app Ranch</h2><ol class="passi-installa">' + passi.map(function (p) { return '<li>' + p + '</li>'; }).join('') + '</ol>' +
+      (I.ios ? '<p class="muted small">Fallo da questa pagina: l\'app si aprirà già con il tuo profilo.</p>' : '') +
+      '<div class="azioni"><button type="button" class="btn primario" data-a="no">Ho capito</button></div></div>';
+    document.body.appendChild(w);
+    w.addEventListener('click', function (e) { if (e.target === w || e.target.getAttribute('data-a') === 'no') w.remove(); });
   }
 
   var ICONA_TG = '<svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M21.5 4.2 2.9 11.4c-1 .4-1 1.6 0 1.9l4.6 1.5 1.8 5.5c.2.7 1.1.9 1.6.4l2.6-2.4 4.7 3.5c.6.4 1.4.1 1.6-.6l3.2-15c.2-.9-.7-1.6-1.5-1.2zM9.7 14.4l-.5 3.4-1.1-3.6 9.6-6.3-8 6.5z" fill="currentColor"/></svg>';

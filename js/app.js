@@ -12,11 +12,29 @@
     else k = localStorage.getItem(CHIAVE);
   } catch (e) { /* storage non disponibile: vale solo per questa visita */ }
   if (!k && RanchAPI.demo) k = window.RANCH_CONFIG.DEMO_K || null;
-  if (params.has('k')) {
+  // iPhone: l'app aggiunta alla Home ha una memoria separata da Safari e parte dall'indirizzo che hai
+  // quando la aggiungi, quindi lì il link personale resta nella barra. Altrove lo togliamo.
+  var IOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  var STANDALONE = (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || navigator.standalone === true;
+  if (IOS && !STANDALONE) {
+    if (k && params.get('k') !== k) { params.set('k', k); history.replaceState(null, '', location.pathname + '?' + params.toString() + location.hash); }
+  } else if (params.has('k')) {
     params.delete('k');
     var q = params.toString();
     history.replaceState(null, '', location.pathname + (q ? '?' + q : '') + location.hash);
   }
+  // manifest solo fuori da iPhone (lì userebbe il suo indirizzo di partenza, senza link personale)
+  if (!IOS) {
+    var lm = document.createElement('link'); lm.rel = 'manifest'; lm.href = 'manifest.webmanifest';
+    document.head.appendChild(lm);
+  }
+  if ('serviceWorker' in navigator && !RanchAPI.demo) {
+    window.addEventListener('load', function () { navigator.serviceWorker.register('sw.js').catch(function () {}); });
+  }
+  // installazione su Android/desktop: il browser ci passa l'evento, lo usiamo dal pulsante "Installa"
+  window.RanchInstalla = { ios: IOS, standalone: STANDALONE, prompt: null };
+  window.addEventListener('beforeinstallprompt', function (e) { e.preventDefault(); window.RanchInstalla.prompt = e; });
+  window.addEventListener('appinstalled', function () { window.RanchInstalla.prompt = null; window.RanchInstalla.installata = true; });
 
   var ctx = { k: k || null, me: null, aggiornaMe: disegnaMe, ricaricaMe: ricaricaMe };
 
